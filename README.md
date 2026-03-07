@@ -37,6 +37,27 @@ brew install portaudio ffmpeg tesseract
 
 ## 2. 安装依赖
 
+### 一键初始化（推荐）
+
+如果你是在新的 Mac mini 上第一次配置，推荐直接运行：
+
+```bash
+./scripts/bootstrap_mac.sh --full
+```
+
+如果你只想先装最小运行环境：
+
+```bash
+./scripts/bootstrap_mac.sh --minimal
+```
+
+这会：
+
+- 检查 Xcode Command Line Tools
+- 安装常用 Homebrew 依赖：`portaudio`、`ffmpeg`、`tesseract`
+- 创建 `.venv`
+- 安装基础依赖和可选能力依赖
+
 基础依赖：
 
 ```bash
