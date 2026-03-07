@@ -13,6 +13,7 @@
 - 做 `tap-to-capture Vision HUD`，轻点眼镜一下就拍照并分析
 - 做 `Memory HUD`，记住场景/物体并在再次看到时回忆备注
 - 做 `Tap Memory HUD`，单击回忆、三击记住、双击退出
+- 做 `Voice Command HUD`，直接说“记住这个”“读一下”“翻译成英文”
 
 如果你是第一次开发 Frame，建议先把这套 starter 跑通，再继续做语音字幕、视觉问答、开发者 HUD 等更有趣的功能。
 
@@ -61,6 +62,12 @@ pip install -r requirements-translation.txt
 
 ```bash
 pip install -r requirements-speaker.txt
+```
+
+语音命令依赖：
+
+```bash
+pip install -r requirements-voice.txt
 ```
 
 视觉 HUD 依赖：
@@ -113,6 +120,7 @@ python frame_lab.py vision -- --source demo --analyzer mock --dry-run
 python frame_lab.py tap-vision -- --demo
 python frame_lab.py memory -- list
 python frame_lab.py tap-memory -- --demo
+python frame_lab.py voice -- --demo
 ```
 
 说明：
@@ -560,10 +568,62 @@ python examples/tap_memory_hud.py --name "Frame 4F" --analyzer openai --output-l
 
 ```bash
 python frame_lab.py tap-memory -- --demo
+python frame_lab.py voice -- --demo
 python frame_lab.py tap-memory -- --name "Frame 4F" --analyzer ocr --ocr-language chi_sim+eng --render-mode unicode
 ```
 
-## 14. 这套 starter 适合继续扩展什么
+## 14. Voice Command HUD：用语音驱动眼镜功能
+
+这是把你现在所有能力真正串起来的一层：
+
+- 你说“describe this”或“这是什么” -> 拍照并描述场景
+- 你说“read this”或“读一下” -> OCR 读取当前文字
+- 你说“remember this”或“记住这个” -> 保存当前场景记忆
+- 你说“recall this”或“我见过吗” -> 回忆是否见过这个场景
+- 你说“translate this to English/Chinese” -> 读取并翻译当前看到的文字
+- 你说“exit” -> 退出语音模式
+
+### 14.1 先本地预览
+
+```bash
+python examples/voice_command_hud.py --demo --dry-run
+```
+
+自定义 demo 命令：
+
+```bash
+python examples/voice_command_hud.py --demo --dry-run --demo-commands "help|describe this|remember this as desk prototype|recall this|exit"
+```
+
+### 14.2 真机运行
+
+先看麦克风设备：
+
+```bash
+python examples/voice_command_hud.py --list-devices
+```
+
+开始语音命令模式：
+
+```bash
+python examples/voice_command_hud.py --name "Frame 4F" --analyzer ocr --ocr-language chi_sim+eng --render-mode unicode
+```
+
+如果你想启用更强的视觉描述和翻译：
+
+```bash
+export OPENAI_API_KEY="your_key_here"
+python examples/voice_command_hud.py --name "Frame 4F" --analyzer openai --render-mode unicode
+```
+
+### 14.3 统一入口
+
+```bash
+python frame_lab.py voice -- --demo --dry-run
+python frame_lab.py voice -- --name "Frame 4F" --analyzer openai --render-mode unicode
+```
+
+## 15. 这套 starter 适合继续扩展什么
 
 ### 会议字幕
 
@@ -582,7 +642,7 @@ python frame_lab.py tap-memory -- --name "Frame 4F" --analyzer ocr --ocr-languag
 - Mac mini 做 OCR / VLM 理解
 - 只回传一小段摘要到眼镜
 
-## 15. 常见问题
+## 16. 常见问题
 
 ### 连不上蓝牙
 
@@ -636,6 +696,13 @@ python frame_lab.py tap-memory -- --name "Frame 4F" --analyzer ocr --ocr-languag
 - 如果 tap 经常被合并，试着把 `--tap-threshold` 调小一点
 - 如果总是保存成新场景，可以把 `--threshold` 调大一点
 
+### Voice Command HUD 听不清命令
+
+- 先用 `python examples/voice_command_hud.py --list-devices` 确认正确的麦克风设备
+- 把 `--listen-duration` 调到 `4.0` 或更高
+- 在安静环境下把 `--min-rms` 调低一点，例如 `0.01`
+- 如果你主要说中文，建议加 `--language zh`
+
 ### Unicode 字幕不显示
 
 - 检查是否使用了 `--render-mode unicode`
@@ -647,7 +714,7 @@ python frame_lab.py tap-memory -- --name "Frame 4F" --analyzer ocr --ocr-languag
 - 先确保没有别的 Frame 应用占住设备
 - 重新运行脚本，让它自动执行 break/reset/break
 
-## 16. 推荐下一步
+## 17. 推荐下一步
 
 你可以继续沿这条路线做三个 MVP：
 
@@ -655,7 +722,7 @@ python frame_lab.py tap-memory -- --name "Frame 4F" --analyzer ocr --ocr-languag
 2. `Meeting Translate HUD`：双语会议翻译
 3. `Meeting Speaker HUD`：带说话人标签的会议辅助
 
-## 17. 官方资料
+## 18. 官方资料
 
 - GitHub: <https://github.com/brilliantlabsAR>
 - Frame SDK: <https://docs.brilliant.xyz/frame/frame-sdk/>

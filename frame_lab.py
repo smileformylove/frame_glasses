@@ -15,6 +15,7 @@ COMMANDS = {
     "tap-vision": "examples/tap_vision_hud.py",
     "memory": "examples/memory_hud.py",
     "tap-memory": "examples/tap_memory_hud.py",
+    "voice": "examples/voice_command_hud.py",
 }
 
 DESCRIPTIONS = {
@@ -28,6 +29,7 @@ DESCRIPTIONS = {
     "tap-vision": "Tap the glasses to capture and analyze a scene",
     "memory": "Remember scenes and recall notes when seeing them again",
     "tap-memory": "Tap the glasses to recall or save scene memories",
+    "voice": "Use voice commands to drive vision and memory workflows",
 }
 
 

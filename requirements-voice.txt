@@ -1,0 +1,4 @@
+sounddevice
+faster-whisper
+pytesseract
+openai
