@@ -1,0 +1,6 @@
+frame-ble
+frame-msg
+numpy
+Pillow
+lz4
+
