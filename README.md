@@ -97,6 +97,25 @@ python examples/scan_frame.py --name-contains "Frame"
 3. 运行 `python examples/scan_frame.py` 确认它重新广播了
 4. 再运行 `python examples/send_text.py --name "Frame 4F" --text "Hello"`
 
+## 2.2 统一入口命令
+
+如果你不想记很多脚本文件名，可以直接用统一入口：
+
+```bash
+source .venv/bin/activate
+python frame_lab.py scan
+python frame_lab.py say -- --name "Frame 4F" --text "Hello"
+python frame_lab.py meeting -- --demo --render-mode unicode
+python frame_lab.py vision -- --source demo --analyzer mock --dry-run
+python frame_lab.py tap-vision -- --demo
+```
+
+说明：
+
+- 第一个参数是子命令，例如 `scan`、`say`、`meeting`
+- 子命令后面的参数会原样传给对应脚本
+- 如果你想更清楚地区分 launcher 参数和脚本参数，建议加一个 `--`
+
 ## 3. 第一次连接测试
 
 把一句话直接显示到眼镜上：
