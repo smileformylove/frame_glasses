@@ -6,6 +6,7 @@ from pathlib import Path
 
 COMMANDS = {
     "scan": "examples/scan_frame.py",
+    "pair-test": "examples/pair_and_test.py",
     "say": "examples/send_text.py",
     "stdin-hud": "examples/stdin_hud.py",
     "run-hud": "examples/run_with_hud.py",
@@ -16,6 +17,7 @@ COMMANDS = {
 
 DESCRIPTIONS = {
     "scan": "Scan nearby Frame BLE devices",
+    "pair-test": "Find the nearest Frame and send a test message",
     "say": "Send one line of text to Frame",
     "stdin-hud": "Mirror stdin lines to Frame",
     "run-hud": "Run a command and mirror useful output to Frame",

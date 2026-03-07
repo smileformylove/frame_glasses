@@ -104,6 +104,7 @@ python examples/scan_frame.py --name-contains "Frame"
 ```bash
 source .venv/bin/activate
 python frame_lab.py scan
+python frame_lab.py pair-test -- --text "Hello"
 python frame_lab.py say -- --name "Frame 4F" --text "Hello"
 python frame_lab.py meeting -- --demo --render-mode unicode
 python frame_lab.py vision -- --source demo --analyzer mock --dry-run
@@ -117,6 +118,18 @@ python frame_lab.py tap-vision -- --demo
 - 如果你想更清楚地区分 launcher 参数和脚本参数，建议加一个 `--`
 
 ## 3. 第一次连接测试
+
+如果你想一条命令完成“扫描最近设备 + 发测试文字”：
+
+```bash
+python examples/pair_and_test.py --text "Hello from Mac mini"
+```
+
+或者使用统一入口：
+
+```bash
+python frame_lab.py pair-test -- --text "Hello from Mac mini"
+```
 
 把一句话直接显示到眼镜上：
 
