@@ -6,3 +6,4 @@ captures/
 logs/
 
 *.bundle
+memory/

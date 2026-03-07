@@ -11,6 +11,7 @@
 - 做实时会议翻译 HUD，支持英文直译和任意目标语言翻译
 - 做可选的说话人标签 HUD，用 `A:`、`B:` 区分不同发言人
 - 做 `tap-to-capture Vision HUD`，轻点眼镜一下就拍照并分析
+- 做 `Memory HUD`，记住场景/物体并在再次看到时回忆备注
 
 如果你是第一次开发 Frame，建议先把这套 starter 跑通，再继续做语音字幕、视觉问答、开发者 HUD 等更有趣的功能。
 
@@ -109,6 +110,7 @@ python frame_lab.py say -- --name "Frame 4F" --text "Hello"
 python frame_lab.py meeting -- --demo --render-mode unicode
 python frame_lab.py vision -- --source demo --analyzer mock --dry-run
 python frame_lab.py tap-vision -- --demo
+python frame_lab.py memory -- list
 ```
 
 说明：
@@ -465,7 +467,61 @@ python examples/tap_vision_hud.py --name "Frame 4F" --analyzer openai --output-l
 - Mac mini 收到单击后，发送拍照命令并等待 JPEG 回传
 - 分析完成后，再把一句结果回显到眼镜
 
-## 12. 这套 starter 适合继续扩展什么
+## 12. Memory HUD：记住场景，再次看到时提醒
+
+这是一个很适合眼镜的方向：
+
+- 第一次看到某个物体或桌面布局时，保存一条备注
+- 下次再次看到类似场景时，自动把备注提示到眼镜上
+
+### 12.1 先保存一条记忆
+
+用 demo 图先体验：
+
+```bash
+python examples/memory_hud.py remember --source demo --analyzer mock --mock-result "这是工位上的开发板" --note "这块板子连着 Frame 调试线"
+```
+
+也可以直接拍眼镜当前看到的画面：
+
+```bash
+python examples/memory_hud.py remember --name "Frame 4F" --source frame --analyzer ocr --ocr-language chi_sim+eng --note "这是会议室门口的 Wi‑Fi 和门禁说明" --show-on-frame
+```
+
+### 12.2 回忆最近匹配的记忆
+
+```bash
+python examples/memory_hud.py recall --source demo --analyzer mock --mock-result "这是工位上的开发板"
+```
+
+真机回忆：
+
+```bash
+python examples/memory_hud.py recall --name "Frame 4F" --source frame --threshold 12 --render-mode unicode
+```
+
+### 12.3 查看或删除记忆
+
+```bash
+python examples/memory_hud.py list
+python examples/memory_hud.py forget 1a2b3c4d
+```
+
+### 12.4 统一入口
+
+```bash
+python frame_lab.py memory -- remember --source demo --analyzer mock --mock-result "桌面有一个 Frame 样机" --note "这是要带去演示的原型"
+python frame_lab.py memory -- recall --source demo
+```
+
+### 12.5 这条链路怎么工作
+
+- 每张图会生成一个本地感知哈希
+- 记忆信息保存在 `/Users/jixiangluo/Documents/repository/ai_glasses/memory/frame_memory.json`
+- 回忆时会找最近的图像哈希并判断距离是否足够接近
+- 如果没有匹配，就显示当前新场景的简短分析
+
+## 13. 这套 starter 适合继续扩展什么
 
 ### 会议字幕
 
@@ -484,7 +540,7 @@ python examples/tap_vision_hud.py --name "Frame 4F" --analyzer openai --output-l
 - Mac mini 做 OCR / VLM 理解
 - 只回传一小段摘要到眼镜
 
-## 13. 常见问题
+## 14. 常见问题
 
 ### 连不上蓝牙
 
@@ -525,6 +581,13 @@ python examples/tap_vision_hud.py --name "Frame 4F" --analyzer openai --output-l
 - 如果拍照超时，离近一点并重试，或把 `--capture-timeout` 调大
 - 如果你要显示中文结果，建议加 `--render-mode unicode`
 
+### Memory HUD 没有匹配到记忆
+
+- 先用 `python examples/memory_hud.py list` 确认本地确实存过记忆
+- 把 `--threshold` 调大一些，例如 `16`
+- 尽量在相似角度和距离下再次拍摄
+- 如果场景变化很大，图像哈希可能会认为这是新场景
+
 ### Unicode 字幕不显示
 
 - 检查是否使用了 `--render-mode unicode`
@@ -536,7 +599,7 @@ python examples/tap_vision_hud.py --name "Frame 4F" --analyzer openai --output-l
 - 先确保没有别的 Frame 应用占住设备
 - 重新运行脚本，让它自动执行 break/reset/break
 
-## 14. 推荐下一步
+## 15. 推荐下一步
 
 你可以继续沿这条路线做三个 MVP：
 
@@ -544,7 +607,7 @@ python examples/tap_vision_hud.py --name "Frame 4F" --analyzer openai --output-l
 2. `Meeting Translate HUD`：双语会议翻译
 3. `Meeting Speaker HUD`：带说话人标签的会议辅助
 
-## 15. 官方资料
+## 16. 官方资料
 
 - GitHub: <https://github.com/brilliantlabsAR>
 - Frame SDK: <https://docs.brilliant.xyz/frame/frame-sdk/>

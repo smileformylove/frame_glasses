@@ -13,6 +13,7 @@ COMMANDS = {
     "meeting": "examples/meeting_hud.py",
     "vision": "examples/vision_hud.py",
     "tap-vision": "examples/tap_vision_hud.py",
+    "memory": "examples/memory_hud.py",
 }
 
 DESCRIPTIONS = {
@@ -24,6 +25,7 @@ DESCRIPTIONS = {
     "meeting": "Run meeting subtitle / translation / speaker HUD",
     "vision": "Capture or load an image, analyze it, and display the result",
     "tap-vision": "Tap the glasses to capture and analyze a scene",
+    "memory": "Remember scenes and recall notes when seeing them again",
 }
 
 
