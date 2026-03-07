@@ -121,6 +121,7 @@ python frame_lab.py tap-vision -- --demo
 python frame_lab.py memory -- list
 python frame_lab.py tap-memory -- --demo
 python frame_lab.py voice -- --demo
+python frame_lab.py doctor
 ```
 
 说明：
@@ -130,6 +131,18 @@ python frame_lab.py voice -- --demo
 - 如果你想更清楚地区分 launcher 参数和脚本参数，建议加一个 `--`
 
 ## 3. 第一次连接测试
+
+如果你想先检查本机环境是否适合开发：
+
+```bash
+python examples/doctor.py
+```
+
+或者使用统一入口：
+
+```bash
+python frame_lab.py doctor
+```
 
 如果你想一条命令完成“扫描最近设备 + 发测试文字”：
 
@@ -569,6 +582,7 @@ python examples/tap_memory_hud.py --name "Frame 4F" --analyzer openai --output-l
 ```bash
 python frame_lab.py tap-memory -- --demo
 python frame_lab.py voice -- --demo
+python frame_lab.py doctor
 python frame_lab.py tap-memory -- --name "Frame 4F" --analyzer ocr --ocr-language chi_sim+eng --render-mode unicode
 ```
 
@@ -731,3 +745,34 @@ python frame_lab.py voice -- --name "Frame 4F" --analyzer openai --render-mode u
 - Hardware: <https://docs.brilliant.xyz/frame/hardware/>
 - OpenAI Responses API quickstart: <https://platform.openai.com/docs/quickstart?api-mode=responses>
 - pyannote.audio GitHub: <https://github.com/pyannote/pyannote-audio>
+
+如果你想一条命令完成“扫描最近设备 + 发测试文字”：
+
+```bash
+python examples/pair_and_test.py --text "Hello from Mac mini"
+```
+
+或者使用统一入口：
+
+```bash
+python frame_lab.py pair-test -- --text "Hello from Mac mini"
+```
+
+把一句话直接显示到眼镜上：
+
+```bash
+source .venv/bin/activate
+python examples/send_text.py --text "Hello from Mac mini"
+```
+
+如果你手边暂时没连眼镜，也可以先本地验证：
+
+```bash
+python examples/send_text.py --text "Hello from Mac mini" --dry-run
+```
+
+如果附近有多副 Frame，可以指定蓝牙名字：
+
+```bash
+python examples/send_text.py --name "Frame" --text "Hi"
+```
