@@ -12,6 +12,7 @@
 - 做可选的说话人标签 HUD，用 `A:`、`B:` 区分不同发言人
 - 做 `tap-to-capture Vision HUD`，轻点眼镜一下就拍照并分析
 - 做 `Memory HUD`，记住场景/物体并在再次看到时回忆备注
+- 做 `Tap Memory HUD`，单击回忆、三击记住、双击退出
 
 如果你是第一次开发 Frame，建议先把这套 starter 跑通，再继续做语音字幕、视觉问答、开发者 HUD 等更有趣的功能。
 
@@ -111,6 +112,7 @@ python frame_lab.py meeting -- --demo --render-mode unicode
 python frame_lab.py vision -- --source demo --analyzer mock --dry-run
 python frame_lab.py tap-vision -- --demo
 python frame_lab.py memory -- list
+python frame_lab.py tap-memory -- --demo
 ```
 
 说明：
@@ -521,7 +523,47 @@ python frame_lab.py memory -- recall --source demo
 - 回忆时会找最近的图像哈希并判断距离是否足够接近
 - 如果没有匹配，就显示当前新场景的简短分析
 
-## 13. 这套 starter 适合继续扩展什么
+## 13. Tap Memory HUD：单击回忆，三击记住
+
+这是把 `Memory HUD` 变成可穿戴交互的一步：
+
+- 单击：回忆当前最像的已存场景
+- 三击：把当前场景保存成新记忆
+- 双击：退出 Tap Memory HUD
+
+### 13.1 先本地预览
+
+```bash
+python examples/tap_memory_hud.py --demo
+```
+
+默认 demo 会按 `3,1,2` 模拟：
+
+- 先三击保存一条记忆
+- 再单击回忆这条记忆
+- 最后双击退出
+
+### 13.2 真机运行
+
+```bash
+python examples/tap_memory_hud.py --name "Frame 4F" --analyzer ocr --ocr-language chi_sim+eng --render-mode unicode
+```
+
+如果你想用 OpenAI 做更强的场景理解：
+
+```bash
+export OPENAI_API_KEY="your_key_here"
+python examples/tap_memory_hud.py --name "Frame 4F" --analyzer openai --output-language Chinese --render-mode unicode
+```
+
+### 13.3 统一入口
+
+```bash
+python frame_lab.py tap-memory -- --demo
+python frame_lab.py tap-memory -- --name "Frame 4F" --analyzer ocr --ocr-language chi_sim+eng --render-mode unicode
+```
+
+## 14. 这套 starter 适合继续扩展什么
 
 ### 会议字幕
 
@@ -540,7 +582,7 @@ python frame_lab.py memory -- recall --source demo
 - Mac mini 做 OCR / VLM 理解
 - 只回传一小段摘要到眼镜
 
-## 14. 常见问题
+## 15. 常见问题
 
 ### 连不上蓝牙
 
@@ -588,6 +630,12 @@ python frame_lab.py memory -- recall --source demo
 - 尽量在相似角度和距离下再次拍摄
 - 如果场景变化很大，图像哈希可能会认为这是新场景
 
+### Tap Memory HUD 行为不符合预期
+
+- 单击会回忆，三击会保存，双击会退出
+- 如果 tap 经常被合并，试着把 `--tap-threshold` 调小一点
+- 如果总是保存成新场景，可以把 `--threshold` 调大一点
+
 ### Unicode 字幕不显示
 
 - 检查是否使用了 `--render-mode unicode`
@@ -599,7 +647,7 @@ python frame_lab.py memory -- recall --source demo
 - 先确保没有别的 Frame 应用占住设备
 - 重新运行脚本，让它自动执行 break/reset/break
 
-## 15. 推荐下一步
+## 16. 推荐下一步
 
 你可以继续沿这条路线做三个 MVP：
 
@@ -607,7 +655,7 @@ python frame_lab.py memory -- recall --source demo
 2. `Meeting Translate HUD`：双语会议翻译
 3. `Meeting Speaker HUD`：带说话人标签的会议辅助
 
-## 16. 官方资料
+## 17. 官方资料
 
 - GitHub: <https://github.com/brilliantlabsAR>
 - Frame SDK: <https://docs.brilliant.xyz/frame/frame-sdk/>

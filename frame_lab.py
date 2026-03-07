@@ -14,6 +14,7 @@ COMMANDS = {
     "vision": "examples/vision_hud.py",
     "tap-vision": "examples/tap_vision_hud.py",
     "memory": "examples/memory_hud.py",
+    "tap-memory": "examples/tap_memory_hud.py",
 }
 
 DESCRIPTIONS = {
@@ -26,6 +27,7 @@ DESCRIPTIONS = {
     "vision": "Capture or load an image, analyze it, and display the result",
     "tap-vision": "Tap the glasses to capture and analyze a scene",
     "memory": "Remember scenes and recall notes when seeing them again",
+    "tap-memory": "Tap the glasses to recall or save scene memories",
 }
 
 
