@@ -89,6 +89,10 @@ async def async_main() -> None:
             'trim_leading': suggested_trim_leading,
             'sample_rate': args.sample_rate,
             'language': args.language,
+            'adaptive_rms': True,
+            'adaptive_alpha': 0.9,
+            'adaptive_multiplier': 2.5,
+            'adaptive_bias': 0.001,
         })
         print(f"[frame-audio-calibrate] saved_profile={Path(args.profile).expanduser()} name={args.name}")
 

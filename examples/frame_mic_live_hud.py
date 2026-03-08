@@ -5,6 +5,7 @@ from typing import Optional, Sequence
 
 from frame_msg import FrameMsg, RxAudio
 
+from frame_audio_gate import AdaptiveRmsGate
 from frame_audio_profile import DEFAULT_PROFILE_PATH, load_profile
 from frame_audio_utils import compute_rms, pcm_bytes_to_float32, preprocess_for_whisper
 from frame_utils import build_unicode_payloads, compact_text, resolve_unicode_font
@@ -43,6 +44,10 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument("--trim-leading", type=float, default=0.25, help="Seconds trimmed from the start of each transcription window before Whisper preprocessing")
     parser.add_argument("--profile", default=str(DEFAULT_PROFILE_PATH), help="Path to the saved audio profile store")
     parser.add_argument("--use-profile", action="store_true", help="Load per-device audio settings from the profile store")
+    parser.add_argument("--adaptive-rms", action="store_true", help="Use an adaptive noise gate instead of only relying on a fixed min RMS")
+    parser.add_argument("--adaptive-alpha", type=float, default=0.9, help="EMA smoothing factor for the adaptive noise floor")
+    parser.add_argument("--adaptive-multiplier", type=float, default=2.5, help="Multiplier applied to the estimated noise floor")
+    parser.add_argument("--adaptive-bias", type=float, default=0.001, help="Small additive bias used by the adaptive gate")
     parser.add_argument("--model", default="base", help="faster-whisper model name")
     parser.add_argument("--language", default=None, help="Optional spoken language code such as en or zh")
     parser.add_argument("--device", default="auto", help="Whisper device, usually auto or cpu on macOS")
@@ -89,6 +94,14 @@ def apply_audio_profile(args) -> None:
         args.sample_rate = int(profile['sample_rate'])
     if not args.language and profile.get('language'):
         args.language = profile['language']
+    if profile.get('adaptive_rms') is not None:
+        args.adaptive_rms = bool(profile.get('adaptive_rms')) or args.adaptive_rms
+    if profile.get('adaptive_alpha') is not None:
+        args.adaptive_alpha = float(profile.get('adaptive_alpha'))
+    if profile.get('adaptive_multiplier') is not None:
+        args.adaptive_multiplier = float(profile.get('adaptive_multiplier'))
+    if profile.get('adaptive_bias') is not None:
+        args.adaptive_bias = float(profile.get('adaptive_bias'))
     print(f"[{Path(__file__).stem}] loaded profile for {args.name}: min_rms={args.min_rms} trim_leading={args.trim_leading}")
 
 
@@ -187,6 +200,7 @@ async def run_live_once(args) -> None:
     step_bytes = max(2, int(step_seconds * bytes_per_second))
     last_message = ""
     unicode_mode = choose_unicode_mode(args, ())
+    rms_gate = AdaptiveRmsGate(args.min_rms, alpha=args.adaptive_alpha, multiplier=args.adaptive_multiplier, bias=args.adaptive_bias) if args.adaptive_rms else None
 
     await connect_frame_msg(frame, args.name)
     try:
@@ -206,9 +220,17 @@ async def run_live_once(args) -> None:
 
                 samples = pcm_bytes_to_float32(window)
                 rms = compute_rms(samples)
-                print(f"[frame-mic] rms={rms:.4f}")
-                if rms < args.min_rms:
-                    continue
+                if rms_gate is not None:
+                    threshold = rms_gate.threshold()
+                    print(f"[frame-mic] rms={rms:.4f} threshold={threshold:.4f} noise_floor={rms_gate.noise_floor}")
+                    voiced = rms_gate.should_transcribe(rms)
+                    rms_gate.observe(rms, voiced=voiced)
+                    if not voiced:
+                        continue
+                else:
+                    print(f"[frame-mic] rms={rms:.4f}")
+                    if rms < args.min_rms:
+                        continue
 
                 whisper_audio = preprocess_for_whisper(samples, args.sample_rate, trim_leading_seconds=args.trim_leading)
                 text = await asyncio.to_thread(transcriber.transcribe, whisper_audio)

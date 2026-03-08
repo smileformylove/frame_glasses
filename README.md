@@ -299,6 +299,8 @@ python examples/frame_mic_live_hud.py --name "Frame EF" --language zh --render-m
 python examples/frame_mic_codex_bridge.py --name "Frame EF" --language zh --render-mode unicode --reconnect --use-profile
 ```
 
+如果你在更嘈杂的环境里，profile 还会自动启用自适应噪声门限。
+
 ```
 
 它会输出：
