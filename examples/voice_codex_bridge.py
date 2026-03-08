@@ -12,6 +12,7 @@ from meeting_hud import (
     normalize_audio,
     parse_audio_device,
 )
+from speech_output import speak_text
 from vision_hud import choose_display
 from voice_context import DEFAULT_CONTEXT_PATH, load_last_message, save_last_message
 from voice_task_state import DEFAULT_TASK_STATE_PATH
@@ -61,7 +62,6 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument("--default-weather-location", default="Shanghai", help="Default location used for weather queries without an explicit place")
     parser.add_argument("--time-zone", default=None, help="Optional IANA time zone such as Asia/Shanghai")
     parser.add_argument("--codex-bin", default="codex", help="Path to the Codex CLI executable")
-    parser.add_argument("--default-weather-location", default=None, help="Default location used for weather queries without an explicit place")
     parser.add_argument("--codex-sandbox", default="workspace-write", help="Sandbox mode used for codex exec")
     parser.add_argument("--codex-full-auto", action="store_true", help="Pass --full-auto to codex exec")
     parser.add_argument("--codex-ephemeral", action="store_true", help="Pass --ephemeral to codex exec")
@@ -69,6 +69,9 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument("--demo-commands", default=DEFAULT_COMMANDS, help="Pipe-separated command phrases used in demo mode")
     parser.add_argument("--wake-word", default=None, help="Optional wake word such as codex or 眼镜; if set, only commands prefixed with it are acted on")
     parser.add_argument("--confirm-timeout", type=float, default=12.0, help="Seconds before a pending confirmation expires")
+    parser.add_argument("--speak-results", action="store_true", help="Speak results aloud using macOS say on the Mac mini")
+    parser.add_argument("--say-voice", default=None, help="Optional macOS voice name used by say")
+    parser.add_argument("--say-rate", type=int, default=None, help="Optional speech rate for macOS say")
     parser.add_argument("--shortcuts-file", default=str(DEFAULT_SHORTCUTS_PATH), help="Path to custom voice shortcuts JSON")
     parser.add_argument("--context-file", default=str(DEFAULT_CONTEXT_PATH), help="Path to persisted voice result context JSON")
     parser.add_argument("--history-file", default=str(DEFAULT_HISTORY_PATH), help="Path to persisted voice history JSON")
@@ -207,6 +210,8 @@ async def run_demo(args) -> None:
                 pending_raw_text = ""
         if not args.dry_run:
             await display.show(message)
+        await speak_text(message, enabled=args.speak_results, voice=args.say_voice, rate=args.say_rate)
+        await speak_text(message, enabled=args.speak_results, voice=args.say_voice, rate=args.say_rate)
         if should_exit:
             break
 

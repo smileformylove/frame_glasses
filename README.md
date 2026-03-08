@@ -1184,7 +1184,15 @@ python examples/voice_codex_bridge.py --name "Frame EF" --language zh --render-m
 python examples/voice_codex_bridge.py --name "Frame EF" --language zh --render-mode unicode --codex-full-auto --codex-ephemeral
 ```
 
+如果你还想让 Mac mini 直接语音播报结果：
+
+```bash
+python examples/voice_codex_bridge.py --name "Frame EF" --language zh --render-mode unicode --speak-results
+```
+
 在 macOS 上，如果你的 `codex` 不在 PATH 里，脚本现在会自动尝试发现 `Codex.app` 里的 CLI 可执行文件。
+注意：Frame 眼镜本体没有扬声器，所以不能在眼镜上直接播报。
+如果你想听到语音反馈，可以加 `--speak-results`，让 Mac mini 用系统 `say` 播报结果。
 
 ### 19.3 统一入口
 
@@ -1239,6 +1247,12 @@ python examples/frame_mic_codex_bridge.py --name "Frame EF" --language zh --rend
 
 ```bash
 python examples/frame_mic_codex_bridge.py --name "Frame EF" --language zh --render-mode unicode --codex-full-auto --codex-ephemeral
+```
+
+如果你还想让 Mac mini 直接语音播报结果：
+
+```bash
+python examples/frame_mic_codex_bridge.py --name "Frame EF" --language zh --render-mode unicode --speak-results
 ```
 
 ### 20.3 统一入口
