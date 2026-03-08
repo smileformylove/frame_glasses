@@ -5,6 +5,7 @@ from pathlib import Path
 import numpy as np
 
 from frame_audio_probe import preflight as probe_preflight
+from frame_audio_profile import DEFAULT_PROFILE_PATH, save_profile
 from frame_audio_utils import compute_rms, pcm_bytes_to_float32, preprocess_for_whisper
 from frame_mic_test import record_from_frame
 from meeting_hud import FasterWhisperTranscriber
@@ -25,6 +26,8 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument("--compute-type", default="int8", help="Whisper compute type")
     parser.add_argument("--beam-size", type=int, default=1, help="Whisper beam size")
     parser.add_argument("--dry-run", action="store_true", help="Print what would happen without talking to Frame")
+    parser.add_argument("--profile", default=str(DEFAULT_PROFILE_PATH), help="Path to the saved audio profile store")
+    parser.add_argument("--save-profile", action="store_true", help="Save the suggested settings into the audio profile store")
     return parser
 
 
@@ -75,8 +78,19 @@ async def async_main() -> None:
     print(f"[frame-audio-calibrate] rms_p20={percentile(rms_values, 20):.4f}")
     print(f"[frame-audio-calibrate] rms_p50={percentile(rms_values, 50):.4f}")
     print(f"[frame-audio-calibrate] rms_p90={percentile(rms_values, 90):.4f}")
-    print(f"[frame-audio-calibrate] suggested_min_rms={suggest_min_rms(rms_values):.4f}")
-    print(f"[frame-audio-calibrate] suggested_trim_leading=0.25")
+    suggested_min_rms = suggest_min_rms(rms_values)
+    suggested_trim_leading = 0.25
+    print(f"[frame-audio-calibrate] suggested_min_rms={suggested_min_rms:.4f}")
+    print(f"[frame-audio-calibrate] suggested_trim_leading={suggested_trim_leading}")
+
+    if args.save_profile and args.name:
+        save_profile(Path(args.profile).expanduser(), args.name, {
+            'min_rms': suggested_min_rms,
+            'trim_leading': suggested_trim_leading,
+            'sample_rate': args.sample_rate,
+            'language': args.language,
+        })
+        print(f"[frame-audio-calibrate] saved_profile={Path(args.profile).expanduser()} name={args.name}")
 
     if args.transcribe_preview:
         cleaned = preprocess_for_whisper(samples, args.sample_rate, trim_leading_seconds=0.25)

@@ -180,7 +180,7 @@ python frame_lab.py probe -- --name "Frame EF" --send-text "probe"
 python frame_lab.py visual-probe -- --name "Frame EF" --duration 15
 python frame_lab.py frame-mic -- --duration 5
 python frame_lab.py frame-audio-probe -- --name "Frame EF" --duration 4 --transcribe
-python frame_lab.py frame-audio-calibrate -- --name "Frame EF" --duration 6 --transcribe-preview
+python frame_lab.py frame-audio-calibrate -- --name "Frame EF" --duration 6 --transcribe-preview --save-profile
 python frame_lab.py frame-mic-live -- --demo --dry-run
 python frame_lab.py agent-hud -- serve --dry-run
 python frame_lab.py notify-run -- -- python3 -c "print('tests passed')"
@@ -286,10 +286,17 @@ python examples/frame_audio_probe.py --name "Frame EF" --duration 4 --transcribe
 python examples/frame_audio_probe.py --name "Frame EF" --duration 4 --transcribe --trim-leading 0.3
 ```
 
-如果你想自动估计更合适的 `--min-rms`：
+如果你想自动估计更合适的 `--min-rms`，并直接保存成 profile：
 
 ```bash
-python examples/frame_audio_calibrate.py --name "Frame EF" --duration 6 --transcribe-preview
+python examples/frame_audio_calibrate.py --name "Frame EF" --duration 6 --transcribe-preview --save-profile
+```
+
+之后你就可以在实时脚本里直接使用 profile：
+
+```bash
+python examples/frame_mic_live_hud.py --name "Frame EF" --language zh --render-mode unicode --reconnect --use-profile
+python examples/frame_mic_codex_bridge.py --name "Frame EF" --language zh --render-mode unicode --reconnect --use-profile
 ```
 
 ```

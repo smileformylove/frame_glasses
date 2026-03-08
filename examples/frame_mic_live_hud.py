@@ -5,6 +5,7 @@ from typing import Optional, Sequence
 
 from frame_msg import FrameMsg, RxAudio
 
+from frame_audio_profile import DEFAULT_PROFILE_PATH, load_profile
 from frame_audio_utils import compute_rms, pcm_bytes_to_float32, preprocess_for_whisper
 from frame_utils import build_unicode_payloads, compact_text, resolve_unicode_font
 from meeting_hud import FasterWhisperTranscriber, build_display_text, build_translator, maybe_translate
@@ -40,6 +41,8 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument("--sample-rate", type=int, default=8000, help="Frame audio sample rate")
     parser.add_argument("--min-rms", type=float, default=0.01, help="Silence threshold for normalized PCM windows")
     parser.add_argument("--trim-leading", type=float, default=0.25, help="Seconds trimmed from the start of each transcription window before Whisper preprocessing")
+    parser.add_argument("--profile", default=str(DEFAULT_PROFILE_PATH), help="Path to the saved audio profile store")
+    parser.add_argument("--use-profile", action="store_true", help="Load per-device audio settings from the profile store")
     parser.add_argument("--model", default="base", help="faster-whisper model name")
     parser.add_argument("--language", default=None, help="Optional spoken language code such as en or zh")
     parser.add_argument("--device", default="auto", help="Whisper device, usually auto or cpu on macOS")
@@ -72,6 +75,21 @@ def preflight_runtime(args) -> None:
             raise RuntimeError(
                 "Missing dependency: openai. Install it with: pip install -r requirements-translation.txt"
             ) from exc
+
+
+def apply_audio_profile(args) -> None:
+    if not args.use_profile:
+        return
+    profile = load_profile(Path(args.profile).expanduser(), args.name)
+    if not profile:
+        return
+    args.min_rms = float(profile.get('min_rms', args.min_rms))
+    args.trim_leading = float(profile.get('trim_leading', args.trim_leading))
+    if profile.get('sample_rate'):
+        args.sample_rate = int(profile['sample_rate'])
+    if not args.language and profile.get('language'):
+        args.language = profile['language']
+    print(f"[{Path(__file__).stem}] loaded profile for {args.name}: min_rms={args.min_rms} trim_leading={args.trim_leading}")
 
 
 def should_retry_exception(exc: Exception) -> bool:
@@ -222,6 +240,7 @@ async def async_main() -> None:
     if args.demo:
         await run_demo(args)
         return
+    apply_audio_profile(args)
     preflight_runtime(args)
     restart_count = 0
     while True:
