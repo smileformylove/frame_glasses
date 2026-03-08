@@ -17,6 +17,7 @@ COMMANDS = {
     "tap-memory": "examples/tap_memory_hud.py",
     "voice": "examples/voice_command_hud.py",
     "doctor": "examples/doctor.py",
+    "agent-hud": "examples/agent_hud.py",
     "frame-mic": "examples/frame_mic_test.py",
     "frame-mic-live": "examples/frame_mic_live_hud.py",
 }
@@ -34,6 +35,7 @@ DESCRIPTIONS = {
     "tap-memory": "Tap the glasses to recall or save scene memories",
     "voice": "Use voice commands to drive vision and memory workflows",
     "doctor": "Check whether the local environment is ready for Frame development",
+    "agent-hud": "Run a persistent notification service and sender for Frame",
     "frame-mic": "Record a short WAV clip from the Frame microphone",
     "frame-mic-live": "Stream and transcribe audio from the Frame microphone",
 }

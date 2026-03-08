@@ -15,6 +15,7 @@
 - 做 `Tap Memory HUD`，单击回忆、三击记住、双击退出
 - 做 `Voice Command HUD`，直接说“记住这个”“读一下”“翻译成英文”
 - 做 `Frame Mic Live HUD`，直接用眼镜自带麦克风做实时转写
+- 做 `Agent HUD`，把本机脚本、日志、agent 状态和 CI 结果持续推到眼镜
 
 如果你是第一次开发 Frame，建议先把这套 starter 跑通，再继续做语音字幕、视觉问答、开发者 HUD 等更有趣的功能。
 
@@ -146,6 +147,7 @@ python frame_lab.py voice -- --demo
 python frame_lab.py doctor
 python frame_lab.py frame-mic -- --duration 5
 python frame_lab.py frame-mic-live -- --demo --dry-run
+python frame_lab.py agent-hud -- serve --dry-run
 ```
 
 说明：
@@ -731,6 +733,7 @@ python examples/frame_mic_live_hud.py --name "Frame 4F" --language en --translat
 
 ```bash
 python frame_lab.py frame-mic-live -- --demo --dry-run
+python frame_lab.py agent-hud -- serve --dry-run
 python frame_lab.py frame-mic-live -- --name "Frame 4F" --language zh --render-mode unicode
 ```
 
@@ -741,7 +744,70 @@ python frame_lab.py frame-mic-live -- --name "Frame 4F" --language zh --render-m
 - `--min-rms 0.01`：静音阈值
 - `--log-file ./logs/frame_mic_live.txt`：把每条转写落盘
 
-## 16. 这套 starter 适合继续扩展什么
+## 16. Agent HUD：把本机通知持续推到眼镜
+
+这是最适合开发者日常使用的一层：
+
+- 一个常驻服务保持 `Frame` 连接
+- 任何本地脚本都可以通过 HTTP 或标准输入把通知推到眼镜
+- 适合接测试结果、部署状态、agent 进度、CI 摘要、日志告警
+
+### 16.1 先用 dry-run 启服务
+
+开一个终端：
+
+```bash
+python examples/agent_hud.py serve --dry-run
+```
+
+另一个终端发一条通知：
+
+```bash
+python examples/agent_hud.py send --text "Tests passed" --level ok
+```
+
+### 16.2 真机运行
+
+```bash
+python examples/agent_hud.py serve --name "Frame 4F" --render-mode unicode
+```
+
+发通知：
+
+```bash
+python examples/agent_hud.py send --text "Deploy succeeded" --level ok
+python examples/agent_hud.py send --text "Staging warning: slow query" --level warn
+```
+
+### 16.3 直接管道推送
+
+把脚本输出逐行推到眼镜：
+
+```bash
+pytest -q | python examples/agent_hud.py pipe --prefix TEST
+```
+
+或者：
+
+```bash
+python your_agent_script.py | python examples/agent_hud.py pipe --prefix AGENT --level info
+```
+
+### 16.4 统一入口
+
+```bash
+python frame_lab.py agent-hud -- serve --dry-run
+python frame_lab.py agent-hud -- send --text "Build succeeded" --level ok
+```
+
+### 16.5 健康检查
+
+服务启动后可查询：
+
+- `GET http://127.0.0.1:8765/health`
+- `GET http://127.0.0.1:8765/recent`
+
+## 17. 这套 starter 适合继续扩展什么
 
 ### 会议字幕
 
@@ -760,7 +826,7 @@ python frame_lab.py frame-mic-live -- --name "Frame 4F" --language zh --render-m
 - Mac mini 做 OCR / VLM 理解
 - 只回传一小段摘要到眼镜
 
-## 17. 常见问题
+## 18. 常见问题
 
 ### 连不上蓝牙
 
@@ -828,6 +894,13 @@ python frame_lab.py frame-mic-live -- --name "Frame 4F" --language zh --render-m
 - 把 `--min-rms` 调低一点，例如 `0.005`
 - 如果你要中文显示，建议加 `--render-mode unicode`
 
+### Agent HUD 收不到通知
+
+- 先确认服务端已经运行：`python examples/agent_hud.py serve --dry-run`
+- 再用 `python examples/agent_hud.py send --text "ping"` 测一次
+- 检查端口是否被占用，默认是 `8765`
+- 打开 `http://127.0.0.1:8765/health` 看服务是否存活
+
 ### Unicode 字幕不显示
 
 - 检查是否使用了 `--render-mode unicode`
@@ -839,7 +912,7 @@ python frame_lab.py frame-mic-live -- --name "Frame 4F" --language zh --render-m
 - 先确保没有别的 Frame 应用占住设备
 - 重新运行脚本，让它自动执行 break/reset/break
 
-## 18. 推荐下一步
+## 19. 推荐下一步
 
 你可以继续沿这条路线做三个 MVP：
 
@@ -847,7 +920,7 @@ python frame_lab.py frame-mic-live -- --name "Frame 4F" --language zh --render-m
 2. `Meeting Translate HUD`：双语会议翻译
 3. `Meeting Speaker HUD`：带说话人标签的会议辅助
 
-## 19. 官方资料
+## 20. 官方资料
 
 - GitHub: <https://github.com/brilliantlabsAR>
 - Frame SDK: <https://docs.brilliant.xyz/frame/frame-sdk/>
