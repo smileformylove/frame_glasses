@@ -1,3 +1,4 @@
+import re
 import asyncio
 import subprocess
 import sys
@@ -9,6 +10,7 @@ from typing import Optional, Tuple
 DEFAULT_COMMANDS = "help|doctor|scan frame|pair test|git status|list tasks|pin next task|run tests|ask codex summarize the repo|confirm|cancel|exit"
 DEFAULT_HELP_TEXT = "VOICE CODEX help: doctor, scan, pair test, git status, list tasks, pin next task, run tests, ask codex ..., confirm, cancel, exit"
 EXIT_WORDS = ("exit", "quit", "stop", "结束", "退出", "停止")
+FILLER_PREFIXES = ("please ", "can you ", "could you ", "请", "帮我", "麻烦", "现在", "能不能")
 HELP_WORDS = ("help", "what can you do", "commands", "帮助")
 CONFIRM_WORDS = ("confirm", "yes", "go ahead", "do it", "确认", "执行", "继续", "好的")
 CANCEL_WORDS = ("cancel", "no", "never mind", "stop that", "取消", "不用了", "算了")
@@ -22,6 +24,29 @@ RUN_TESTS_WORDS = ("run tests", "run test", "运行测试", "测试一下", "跑
 CODEX_PREFIXES = ("ask codex ", "codex ", "让 codex ", "请 codex ", "让 codex 帮我", "请 codex 帮我")
 
 
+def normalize_command_text(text: str) -> str:
+    normalized = text.strip().lower()
+    normalized = normalized.replace('：', ':').replace('，', ' ').replace('。', ' ').replace('？', ' ').replace('！', ' ')
+    normalized = re.sub(r"[\t\n\r]+", " ", normalized)
+    normalized = re.sub(r"\s+", " ", normalized).strip()
+    for prefix in FILLER_PREFIXES:
+        if normalized.startswith(prefix):
+            normalized = normalized[len(prefix):].strip()
+    return normalized
+
+
+def strip_wake_word(text: str, wake_word: Optional[str]) -> Optional[str]:
+    normalized = normalize_command_text(text)
+    if not wake_word:
+        return normalized
+    wake = normalize_command_text(wake_word)
+    if normalized == wake:
+        return ""
+    if normalized.startswith(wake + " "):
+        return normalized[len(wake):].strip()
+    return None
+
+
 class BridgeIntent:
     def __init__(self, action: str, payload: Optional[str] = None, raw: str = ""):
         self.action = action
@@ -29,8 +54,12 @@ class BridgeIntent:
         self.raw = raw
 
 
-def parse_intent(text: str) -> BridgeIntent:
-    lowered = text.lower().strip()
+def parse_intent(text: str, wake_word: Optional[str] = None) -> BridgeIntent:
+    lowered = strip_wake_word(text, wake_word)
+    if lowered is None:
+        return BridgeIntent("ignored", raw=text)
+    if lowered == "":
+        return BridgeIntent("help", raw=text)
     if not lowered:
         return BridgeIntent("unknown", raw=text)
     if any(word in lowered for word in EXIT_WORDS):
@@ -57,7 +86,14 @@ def parse_intent(text: str) -> BridgeIntent:
         return BridgeIntent("git_status", raw=text)
     for prefix in CODEX_PREFIXES:
         if lowered.startswith(prefix):
-            return BridgeIntent("codex_exec", payload=text[len(prefix):].strip(), raw=text)
+            payload = text[len(prefix):].strip()
+            payload_lower = payload.lower()
+            for nested_prefix in CODEX_PREFIXES:
+                if payload_lower.startswith(nested_prefix):
+                    payload = payload[len(nested_prefix):].strip()
+                    payload_lower = payload.lower()
+                    break
+            return BridgeIntent("codex_exec", payload=payload, raw=text)
     return BridgeIntent("unknown", raw=text)
 
 
@@ -150,6 +186,8 @@ async def execute_intent(args, intent: BridgeIntent) -> Tuple[str, bool]:
         return DEFAULT_HELP_TEXT, False
     if intent.action == "exit":
         return "VOICE CODEX stopping", True
+    if intent.action == "ignored":
+        return "", False
     if intent.action == "unknown":
         return "VOICE CODEX unknown command. Say help.", False
     if intent.action == "confirm":

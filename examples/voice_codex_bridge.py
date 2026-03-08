@@ -52,6 +52,7 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument("--codex-ephemeral", action="store_true", help="Pass --ephemeral to codex exec")
     parser.add_argument("--demo", action="store_true", help="Run a local demo without using the microphone")
     parser.add_argument("--demo-commands", default=DEFAULT_COMMANDS, help="Pipe-separated command phrases used in demo mode")
+    parser.add_argument("--wake-word", default=None, help="Optional wake word such as codex or 眼镜; if set, only commands prefixed with it are acted on")
     return parser
 
 
@@ -80,8 +81,10 @@ async def run_demo(args) -> None:
     pending_intent = None
     for command_text in commands:
         print(f"[voice-codex] heard={command_text}")
-        intent = parse_intent(command_text)
+        intent = parse_intent(command_text, wake_word=args.wake_word)
         confirmed = False
+        if pending_intent is not None and intent.action == "ignored":
+            intent = parse_intent(command_text, wake_word=None)
         if pending_intent is not None:
             if intent.action == "confirm":
                 intent = pending_intent
@@ -104,8 +107,9 @@ async def run_demo(args) -> None:
                 message, should_exit = await execute_intent(args, intent)
             except Exception as exc:
                 message, should_exit = f"VOICE CODEX error: {exc}", False
-        print(f"[voice-codex] result={message}")
-        if not args.dry_run:
+        if message:
+            print(f"[voice-codex] result={message}")
+        if message and not args.dry_run:
             await display.show(message)
         if should_exit:
             break
@@ -138,8 +142,10 @@ async def run_live(args) -> None:
             continue
 
         print(f"[voice-codex] heard={text}")
-        intent = parse_intent(text)
+        intent = parse_intent(text, wake_word=args.wake_word)
         confirmed = False
+        if pending_intent is not None and intent.action == "ignored":
+            intent = parse_intent(text, wake_word=None)
         if pending_intent is not None:
             if intent.action == "confirm":
                 intent = pending_intent
@@ -162,6 +168,8 @@ async def run_live(args) -> None:
                 message, should_exit = await execute_intent(args, intent)
             except Exception as exc:
                 message, should_exit = f"VOICE CODEX error: {exc}", False
+        if not message:
+            continue
         print(f"[voice-codex] result={message}")
         await display.show(message)
         if should_exit:

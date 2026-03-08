@@ -1144,6 +1144,12 @@ python examples/voice_codex_bridge.py --demo --dry-run --demo-commands "help|run
 python examples/voice_codex_bridge.py --name "Frame EF" --language zh --render-mode unicode
 ```
 
+如果你担心误触，可以要求必须先说唤醒词：
+
+```bash
+python examples/voice_codex_bridge.py --name "Frame EF" --language zh --render-mode unicode --wake-word codex
+```
+
 如果你希望 `ask codex ...` 执行时更自动：
 
 ```bash
@@ -1171,7 +1177,8 @@ python frame_lab.py voice-codex -- --name "Frame EF" --language zh --render-mode
 python examples/frame_mic_codex_bridge.py --demo --dry-run
 ```
 
-高代价命令现在会先提示确认，例如你说 `run tests` 后，需要再说 `confirm`。
+高代价命令现在会先提示确认，例如你说 `run tests` 或 `ask codex ...` 后，需要再说 `confirm`。
+如果你配置了 `--wake-word codex`，那普通闲聊会被忽略，只有带唤醒词的命令才会触发。
 
 ### 20.2 真机运行
 

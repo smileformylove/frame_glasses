@@ -54,6 +54,7 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument("--restart-delay", type=float, default=2.0, help="Seconds to wait before reconnecting")
     parser.add_argument("--demo", action="store_true", help="Run a local demo without using the Frame microphone")
     parser.add_argument("--demo-commands", default=DEFAULT_DEMO_COMMANDS, help="Pipe-separated command phrases used in demo mode")
+    parser.add_argument("--wake-word", default=None, help="Optional wake word such as codex or 眼镜; if set, only commands prefixed with it are acted on")
     return parser
 
 
@@ -87,8 +88,10 @@ async def run_demo(args) -> None:
     pending_intent = None
     for command_text in commands:
         print(f"[frame-mic-codex] heard={command_text}")
-        intent = parse_intent(command_text)
+        intent = parse_intent(command_text, wake_word=args.wake_word)
         confirmed = False
+        if pending_intent is not None and intent.action == "ignored":
+            intent = parse_intent(command_text, wake_word=None)
         if pending_intent is not None:
             if intent.action == "confirm":
                 intent = pending_intent
@@ -110,6 +113,8 @@ async def run_demo(args) -> None:
                 message, should_exit = await execute_intent(args, intent)
             except Exception as exc:
                 message, should_exit = f"VOICE CODEX error: {exc}", False
+        if not message:
+            continue
         print(f"[frame-mic-codex] result={message}")
         await send_status_text(None, message, args, unicode_mode=True)
         if should_exit:
@@ -170,8 +175,10 @@ async def run_live_once(args) -> None:
                 append_log(log_file, f"heard: {heard}")
                 print(f"[frame-mic-codex] heard={heard}")
 
-                intent = parse_intent(heard)
+                intent = parse_intent(heard, wake_word=args.wake_word)
                 confirmed = False
+                if pending_intent is not None and intent.action == "ignored":
+                    intent = parse_intent(heard, wake_word=None)
                 if pending_intent is not None:
                     if intent.action == "confirm":
                         intent = pending_intent
@@ -196,6 +203,8 @@ async def run_live_once(args) -> None:
                     except Exception as exc:
                         message, should_exit = f"VOICE CODEX error: {exc}", False
                 append_log(log_file, f"result: {message}")
+                if not message:
+                    continue
                 print(f"[frame-mic-codex] result={message}")
                 await send_status_text(frame, message, args, unicode_mode)
                 if should_exit:
