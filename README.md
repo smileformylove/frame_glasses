@@ -780,6 +780,18 @@ python examples/agent_hud.py send --text "Deploy succeeded" --level ok
 python examples/agent_hud.py send --text "Staging warning: slow query" --level warn
 ```
 
+常驻 pin 一条提醒：
+
+```bash
+python examples/agent_hud.py pin --text "Today: stabilize Frame BLE reconnection"
+```
+
+清除 pin：
+
+```bash
+python examples/agent_hud.py clear
+```
+
 ### 16.3 直接管道推送
 
 把脚本输出逐行推到眼镜：
@@ -799,6 +811,8 @@ python your_agent_script.py | python examples/agent_hud.py pipe --prefix AGENT -
 ```bash
 python frame_lab.py agent-hud -- serve --dry-run
 python frame_lab.py agent-hud -- send --text "Build succeeded" --level ok
+python frame_lab.py agent-hud -- pin --text "Ship the demo"
+python frame_lab.py agent-hud -- clear
 ```
 
 ### 16.4.1 直接包一层命令
@@ -822,6 +836,7 @@ python frame_lab.py notify-run -- -- python3 -c "print('tests passed')"
 
 - `GET http://127.0.0.1:8765/health`
 - `GET http://127.0.0.1:8765/recent`
+- `GET http://127.0.0.1:8765/pinned`
 
 ### 16.6 开机常驻（macOS LaunchAgent）
 

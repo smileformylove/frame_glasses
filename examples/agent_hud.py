@@ -17,7 +17,8 @@ from frame_utils import FrameDisplay, FrameUnicodeDisplay, compact_text, resolve
 
 DEFAULT_PORT = 8765
 DEFAULT_HOST = "127.0.0.1"
-DEFAULT_URL = f"http://{DEFAULT_HOST}:{DEFAULT_PORT}/notify"
+DEFAULT_URL = f"http://{DEFAULT_HOST}:{DEFAULT_PORT}"
+DEFAULT_RESTORE_DELAY = 1.5
 
 
 @dataclass
@@ -27,6 +28,8 @@ class Notification:
     level: str = "info"
     source: str = "local"
     timestamp: float = 0.0
+    sticky: bool = False
+    clear: bool = False
 
 
 class NotificationDisplay:
@@ -78,6 +81,7 @@ class AgentHudServer:
         y: int,
         dedupe_window: float,
         recent_limit: int,
+        restore_delay: float,
     ) -> None:
         self.host = host
         self.port = port
@@ -85,10 +89,12 @@ class AgentHudServer:
         self.x = x
         self.y = y
         self.dedupe_window = dedupe_window
+        self.restore_delay = restore_delay
         self.recent: Deque[Notification] = deque(maxlen=recent_limit)
         self.queue: "queue.Queue[Notification]" = queue.Queue()
         self.last_rendered_text = ""
         self.last_render_time = 0.0
+        self.pinned_notification: Optional[Notification] = None
         self._httpd: Optional[ThreadingHTTPServer] = None
         self._thread: Optional[threading.Thread] = None
 
@@ -127,15 +133,23 @@ class AgentHudServer:
 
             def do_GET(self):
                 if self.path == "/health":
-                    self._write_json({"ok": True, "queued": parent.queue.qsize(), "recent": len(parent.recent)})
+                    self._write_json({
+                        "ok": True,
+                        "queued": parent.queue.qsize(),
+                        "recent": len(parent.recent),
+                        "pinned": asdict(parent.pinned_notification) if parent.pinned_notification else None,
+                    })
                     return
                 if self.path == "/recent":
                     self._write_json([asdict(item) for item in list(parent.recent)])
                     return
+                if self.path == "/pinned":
+                    self._write_json(asdict(parent.pinned_notification) if parent.pinned_notification else None)
+                    return
                 self._write_json({"error": "not found"}, status=404)
 
             def do_POST(self):
-                if self.path != "/notify":
+                if self.path not in ("/notify", "/pin", "/clear"):
                     self._write_json({"error": "not found"}, status=404)
                     return
 
@@ -147,7 +161,9 @@ class AgentHudServer:
                 content_type = self.headers.get("Content-Type", "")
 
                 try:
-                    if "application/json" in content_type:
+                    if self.path == "/clear":
+                        notification = Notification(text="", clear=True, timestamp=time.time())
+                    elif "application/json" in content_type:
                         body = json.loads(raw.decode("utf-8") or "{}")
                         notification = Notification(
                             text=str(body.get("text", "")).strip(),
@@ -155,14 +171,19 @@ class AgentHudServer:
                             level=str(body.get("level", "info")).strip() or "info",
                             source=str(body.get("source", "local")).strip() or "local",
                             timestamp=time.time(),
+                            sticky=bool(body.get("sticky", False)) or self.path == "/pin",
                         )
                     else:
-                        notification = Notification(text=raw.decode("utf-8").strip(), timestamp=time.time())
+                        notification = Notification(
+                            text=raw.decode("utf-8").strip(),
+                            timestamp=time.time(),
+                            sticky=self.path == "/pin",
+                        )
                 except Exception as exc:
                     self._write_json({"error": f"invalid payload: {exc}"}, status=400)
                     return
 
-                if not notification.text:
+                if not notification.clear and not notification.text:
                     self._write_json({"error": "text is required"}, status=400)
                     return
 
@@ -181,19 +202,35 @@ class AgentHudServer:
         try:
             while True:
                 notification = await asyncio.to_thread(self.queue.get)
-                message = format_notification(notification)
-                if should_skip_duplicate(message, self.last_rendered_text, self.last_render_time, self.dedupe_window):
+                if notification.clear:
+                    self.pinned_notification = None
+                    await self._render("AGENT INFO Cleared pinned message", force=True)
                     continue
-                print(f"[agent-hud] {message}")
-                await self.display.show(message, x=self.x, y=self.y)
-                self.last_rendered_text = message
-                self.last_render_time = time.time()
+
+                if notification.sticky:
+                    self.pinned_notification = notification
+                    await self._render(format_notification(notification, sticky=True), force=True)
+                    continue
+
+                message = format_notification(notification)
+                await self._render(message)
+                if self.pinned_notification is not None:
+                    await asyncio.sleep(self.restore_delay)
+                    await self._render(format_notification(self.pinned_notification, sticky=True), force=True)
         finally:
             self.stop_http_server()
             await self.display.disconnect()
 
+    async def _render(self, message: str, force: bool = False) -> None:
+        if not force and should_skip_duplicate(message, self.last_rendered_text, self.last_render_time, self.dedupe_window):
+            return
+        print(f"[agent-hud] {message}")
+        await self.display.show(message, x=self.x, y=self.y)
+        self.last_rendered_text = message
+        self.last_render_time = time.time()
 
-def format_notification(notification: Notification) -> str:
+
+def format_notification(notification: Notification, sticky: bool = False) -> str:
     level = notification.level.lower()
     level_prefix = {
         "info": "INFO",
@@ -204,7 +241,8 @@ def format_notification(notification: Notification) -> str:
         "error": "ERROR",
         "fail": "FAIL",
     }.get(level, level.upper() if level else "INFO")
-    return f"{notification.prefix} {level_prefix} {notification.text}".strip()
+    sticky_prefix = "PIN " if sticky else ""
+    return f"{sticky_prefix}{notification.prefix} {level_prefix} {notification.text}".strip()
 
 
 def should_skip_duplicate(message: str, last_message: str, last_time: float, window: float) -> bool:
@@ -230,20 +268,31 @@ def build_parser() -> argparse.ArgumentParser:
     serve.add_argument("--y", type=int, default=1, help="Display y coordinate")
     serve.add_argument("--dedupe-window", type=float, default=3.0, help="Seconds to suppress identical consecutive notifications")
     serve.add_argument("--recent-limit", type=int, default=50, help="How many recent notifications are kept in memory")
+    serve.add_argument("--restore-delay", type=float, default=DEFAULT_RESTORE_DELAY, help="Seconds before re-showing the pinned message after a transient notification")
 
     send = subparsers.add_parser("send", help="Send a notification to a running Agent HUD server")
-    send.add_argument("--url", default=DEFAULT_URL, help="Notification endpoint URL")
+    send.add_argument("--url", default=f"{DEFAULT_URL}/notify", help="Notification endpoint URL")
     send.add_argument("--text", required=True, help="Notification text")
     send.add_argument("--prefix", default="AGENT", help="Notification prefix")
     send.add_argument("--level", default="info", help="Notification level such as info, ok, warn, error")
     send.add_argument("--source", default="local", help="Notification source label")
 
+    pin = subparsers.add_parser("pin", help="Pin a sticky notification until cleared")
+    pin.add_argument("--url", default=f"{DEFAULT_URL}/pin", help="Pinned notification endpoint URL")
+    pin.add_argument("--text", required=True, help="Pinned notification text")
+    pin.add_argument("--prefix", default="AGENT", help="Notification prefix")
+    pin.add_argument("--level", default="info", help="Notification level such as info, ok, warn, error")
+    pin.add_argument("--source", default="local", help="Notification source label")
+
+    clear = subparsers.add_parser("clear", help="Clear the pinned notification")
+    clear.add_argument("--url", default=f"{DEFAULT_URL}/clear", help="Clear endpoint URL")
+
     demo = subparsers.add_parser("demo", help="Run a local demo by sending sample notifications")
-    demo.add_argument("--url", default=DEFAULT_URL, help="Notification endpoint URL")
+    demo.add_argument("--url", default=DEFAULT_URL, help="Base service URL without the endpoint suffix")
     demo.add_argument("--prefix", default="AGENT", help="Notification prefix")
 
     pipe = subparsers.add_parser("pipe", help="Read stdin lines and send them as notifications")
-    pipe.add_argument("--url", default=DEFAULT_URL, help="Notification endpoint URL")
+    pipe.add_argument("--url", default=f"{DEFAULT_URL}/notify", help="Notification endpoint URL")
     pipe.add_argument("--prefix", default="AGENT", help="Notification prefix")
     pipe.add_argument("--level", default="info", help="Notification level for each stdin line")
     pipe.add_argument("--source", default="stdin", help="Notification source label")
@@ -251,19 +300,11 @@ def build_parser() -> argparse.ArgumentParser:
     return parser
 
 
-def send_notification(url: str, text: str, prefix: str, level: str, source: str) -> None:
-    payload = json.dumps(
-        {
-            "text": text,
-            "prefix": prefix,
-            "level": level,
-            "source": source,
-        },
-        ensure_ascii=False,
-    ).encode("utf-8")
+def post_json(url: str, payload: dict) -> None:
+    encoded = json.dumps(payload, ensure_ascii=False).encode("utf-8")
     request = urllib.request.Request(
         url,
-        data=payload,
+        data=encoded,
         headers={"Content-Type": "application/json; charset=utf-8"},
         method="POST",
     )
@@ -271,20 +312,37 @@ def send_notification(url: str, text: str, prefix: str, level: str, source: str)
         with urllib.request.urlopen(request, timeout=5) as response:
             body = response.read().decode("utf-8")
     except urllib.error.URLError as exc:
-        raise SystemExit(f"Failed to send notification: {exc}") from exc
+        raise SystemExit(f"Failed to contact Agent HUD: {exc}") from exc
     print(body)
 
 
-async def run_demo(url: str, prefix: str) -> None:
+def send_notification(url: str, text: str, prefix: str, level: str, source: str, sticky: bool = False) -> None:
+    post_json(url, {
+        "text": text,
+        "prefix": prefix,
+        "level": level,
+        "source": source,
+        "sticky": sticky,
+    })
+
+
+def clear_notification(url: str) -> None:
+    post_json(url, {})
+
+
+async def run_demo(base_url: str, prefix: str) -> None:
     samples = [
         ("Starting repo checks", "info"),
         ("Tests passed", "ok"),
         ("Deploy warning: staging only", "warn"),
         ("Build failed on integration step", "error"),
     ]
+    send_notification(f"{base_url}/pin", "Pinned sprint focus: stabilize BLE", prefix, "info", "demo", sticky=True)
+    await asyncio.sleep(0.1)
     for text, level in samples:
-        send_notification(url, text, prefix, level, "demo")
+        send_notification(f"{base_url}/notify", text, prefix, level, "demo")
         await asyncio.sleep(0.1)
+    clear_notification(f"{base_url}/clear")
 
 
 def pipe_notifications(url: str, prefix: str, level: str, source: str) -> None:
@@ -299,6 +357,12 @@ async def async_main() -> None:
     args = build_parser().parse_args()
     if args.command == "send":
         send_notification(args.url, args.text, args.prefix, args.level, args.source)
+        return
+    if args.command == "pin":
+        send_notification(args.url, args.text, args.prefix, args.level, args.source, sticky=True)
+        return
+    if args.command == "clear":
+        clear_notification(args.url)
         return
     if args.command == "demo":
         await run_demo(args.url, args.prefix)
@@ -325,6 +389,7 @@ async def async_main() -> None:
             y=args.y,
             dedupe_window=args.dedupe_window,
             recent_limit=args.recent_limit,
+            restore_delay=args.restore_delay,
         )
         await server.run()
         return
