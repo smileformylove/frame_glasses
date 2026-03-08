@@ -18,14 +18,15 @@ from command_summary import (
 )
 
 
-DEFAULT_COMMANDS = "help|doctor|scan frame|pair test|git status|list tasks|pin next task|run tests|resume codex|code review|ask codex summarize the repo|repeat|confirm|cancel|exit"
-DEFAULT_HELP_TEXT = "VOICE CODEX help: doctor, scan, pair test, git status, list tasks, pin next task, run tests, resume codex, code review, ask codex ..., repeat, confirm, cancel, exit"
+DEFAULT_COMMANDS = "help|doctor|scan frame|pair test|git status|list tasks|pin next task|run tests|resume codex|code review|ask codex summarize the repo|repeat|why failed|details|confirm|cancel|exit"
+DEFAULT_HELP_TEXT = "VOICE CODEX help: doctor, scan, pair test, git status, list tasks, pin next task, run tests, resume codex, code review, ask codex ..., repeat, why failed, details, confirm, cancel, exit"
 EXIT_WORDS = ("exit", "quit", "stop", "结束", "退出", "停止")
 FILLER_PREFIXES = ("please ", "can you ", "could you ", "请", "帮我", "麻烦", "现在", "能不能")
 HELP_WORDS = ("help", "what can you do", "commands", "帮助")
 CONFIRM_WORDS = ("confirm", "yes", "go ahead", "do it", "确认", "执行", "继续执行", "好的")
 CANCEL_WORDS = ("cancel", "no", "never mind", "stop that", "取消", "不用了", "算了")
 REPEAT_WORDS = ("repeat", "say again", "again", "再说一次", "重复一下", "再来一遍")
+FOLLOW_UP_WORDS = ("why failed", "why did it fail", "details", "explain more", "what happened", "为什么失败", "详细一点", "详细说明", "解释一下")
 DOCTOR_WORDS = ("doctor", "check environment", "环境检查", "检查环境")
 SCAN_WORDS = ("scan frame", "scan device", "扫描眼镜", "扫描设备")
 PAIR_TEST_WORDS = ("pair test", "test connection", "连接测试", "配对测试")
@@ -200,6 +201,8 @@ def parse_intent(text: str, wake_word: Optional[str] = None, shortcuts=None) -> 
         return BridgeIntent("cancel", raw=text)
     if any(word in lowered for word in REPEAT_WORDS):
         return BridgeIntent("repeat", raw=text)
+    if any(word in lowered for word in FOLLOW_UP_WORDS):
+        return BridgeIntent("follow_up", raw=text)
     if any(word in lowered for word in DOCTOR_WORDS):
         return BridgeIntent("doctor", raw=text)
     if any(word in lowered for word in SCAN_WORDS):
@@ -318,6 +321,12 @@ def progress_message(intent: BridgeIntent, locale: str = 'en') -> str:
     if intent.action == 'codex_exec':
         return 'Asking Codex...'
     return 'Running command...'
+
+
+def build_follow_up_prompt(last_message: str, locale: str = 'en') -> str:
+    if locale == 'zh':
+        return f"请根据这条上一结果做简短解释，并优先说明失败原因或下一步建议：{last_message}"
+    return f"Briefly explain this previous result and focus on the likely failure reason or next step: {last_message}"
 
 
 def dry_run_message(intent: BridgeIntent, args, locale: str) -> str:

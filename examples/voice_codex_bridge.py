@@ -19,6 +19,7 @@ from voice_codex_core import (
     canceled_message,
     confirmation_prompt,
     execute_intent,
+    build_follow_up_prompt,
     expired_message,
     locale_for_args,
     parse_intent,
@@ -135,8 +136,15 @@ async def run_demo(args) -> None:
             )
         except Exception as exc:
             message, should_exit = f"VOICE CODEX error: {exc}", False
-        if parse_intent(command_text, wake_word=args.wake_word, shortcuts=shortcuts).action == "repeat":
+        action = parse_intent(command_text, wake_word=args.wake_word, shortcuts=shortcuts).action
+        if action == "repeat":
             message = last_message or ("VOICE CODEX nothing to repeat." if locale_for_args(args) == "en" else "没有可重复的结果。")
+        elif action == "follow_up":
+            if not last_message:
+                message = "VOICE CODEX nothing to explain yet." if locale_for_args(args) == "en" else "还没有可追问的结果。"
+            else:
+                follow_intent = type("TmpIntent", (), {"action": "codex_exec", "payload": build_follow_up_prompt(last_message, locale_for_args(args))})()
+                message, should_exit = await execute_intent(args, follow_intent)
         if not message:
             continue
         print(f"[voice-codex] result={message}")
@@ -158,6 +166,7 @@ async def run_live(args) -> None:
     )
     args.compact_text = lambda text: compact_for_args(args, text)
     display = ResultDisplay(args)
+    shortcuts = load_shortcuts(Path(args.shortcuts_file).expanduser())
     pending_intent = None
     pending_expires_at = 0.0
     last_message = ""
@@ -183,8 +192,15 @@ async def run_live(args) -> None:
             )
         except Exception as exc:
             message, should_exit = f"VOICE CODEX error: {exc}", False
-        if parse_intent(text, wake_word=args.wake_word, shortcuts=shortcuts).action == "repeat":
+        action = parse_intent(text, wake_word=args.wake_word, shortcuts=shortcuts).action
+        if action == "repeat":
             message = last_message or ("VOICE CODEX nothing to repeat." if locale_for_args(args) == "en" else "没有可重复的结果。")
+        elif action == "follow_up":
+            if not last_message:
+                message = "VOICE CODEX nothing to explain yet." if locale_for_args(args) == "en" else "还没有可追问的结果。"
+            else:
+                follow_intent = type("TmpIntent", (), {"action": "codex_exec", "payload": build_follow_up_prompt(last_message, locale_for_args(args))})()
+                message, should_exit = await execute_intent(args, follow_intent)
         if not message:
             continue
         print(f"[voice-codex] result={message}")

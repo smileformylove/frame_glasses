@@ -1145,6 +1145,7 @@ python frame_lab.py task-board -- pin-next
 - 说 `code review` / `代码审查` -> 进入确认态，再执行当前仓库 review
 - 说 `ask codex ...` -> 进入确认态，再说 `confirm` 才直接调用本机 `codex exec`
 - 说 `repeat` / `再说一次` -> 重复上一条结果
+- 说 `为什么失败` / `详细一点` -> 基于上一条结果继续追问
 
 ### 19.1 先本地预览
 
@@ -1200,6 +1201,7 @@ python examples/frame_mic_codex_bridge.py --demo --dry-run
 高代价命令现在会先提示确认，例如你说 `run tests` 或 `ask codex ...` 后，需要再说 `confirm`。
 如果你配置了 `--wake-word codex`，那普通闲聊会被忽略，只有带唤醒词的命令才会触发。
 另外，当你带唤醒词说一整句自由文本时，系统会默认把它当成 `ask codex ...`。
+在这之后，你还可以继续说 `为什么失败` 或 `详细一点`，系统会基于上一条结果继续追问。
 
 ### 20.2 真机运行
 
