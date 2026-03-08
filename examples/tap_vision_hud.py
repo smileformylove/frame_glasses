@@ -6,6 +6,7 @@ from typing import Optional
 from frame_msg import FrameMsg, RxPhoto, RxTap, TxCaptureSettings
 
 from frame_utils import build_unicode_payloads, compact_text, resolve_unicode_font
+from image_quality import analyze_image_bytes, should_retry_capture
 from vision_hud import (
     CAPTURE_MSG_CODE,
     DEFAULT_VISION_PROMPT,
@@ -43,6 +44,8 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument("--warmup-captures", type=int, default=1, help="Number of initial captures to discard before the real capture")
     parser.add_argument("--capture-retries", type=int, default=2, help="How many times to retry capture if image validation fails")
     parser.add_argument("--stabilize-delay", type=float, default=0.2, help="Seconds to wait after starting the camera app before capturing")
+    parser.add_argument("--strict-image-quality", action="store_true", help="Retry capture when the image looks too blurry, dark, or overexposed")
+    parser.add_argument("--quality-locale", choices=("en", "zh"), default="en", help="Language used when logging image quality diagnostics")
     parser.add_argument("--output-dir", default="./captures", help="Directory for captured images")
     parser.add_argument("--filename-prefix", default="tap_vision", help="Prefix for saved captures")
     parser.add_argument("--tap-threshold", type=float, default=0.3, help="Tap grouping threshold in seconds")
@@ -112,6 +115,10 @@ async def capture_photo(frame: FrameMsg, photo_queue: asyncio.Queue, args, image
         try:
             image_bytes = await capture_photo_bytes(frame, photo_queue, args)
             validate_captured_jpeg(image_bytes)
+            report = analyze_image_bytes(image_bytes)
+            print(f"[tap-vision] {report.summary(args.quality_locale)}")
+            if args.strict_image_quality and should_retry_capture(report):
+                raise RuntimeError(report.summary(args.quality_locale))
             image_path.write_bytes(image_bytes)
             return image_path
         except Exception as exc:

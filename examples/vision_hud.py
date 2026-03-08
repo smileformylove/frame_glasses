@@ -10,6 +10,7 @@ from typing import Optional, Sequence
 from frame_msg import FrameMsg, RxPhoto, TxCaptureSettings
 
 from frame_utils import FrameDisplay, FrameUnicodeDisplay, compact_text, sleep_briefly, connect_with_retry, initialize_frame
+from image_quality import analyze_image_bytes, should_retry_capture
 
 
 CAPTURE_MSG_CODE = 0x0D
@@ -117,6 +118,8 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument("--warmup-captures", type=int, default=1, help="Number of initial captures to discard before the real capture")
     parser.add_argument("--capture-retries", type=int, default=2, help="How many times to retry capture if image validation fails")
     parser.add_argument("--stabilize-delay", type=float, default=0.2, help="Seconds to wait after starting the camera app before capturing")
+    parser.add_argument("--strict-image-quality", action="store_true", help="Retry capture when the image looks too blurry, dark, or overexposed")
+    parser.add_argument("--quality-locale", choices=("en", "zh"), default="en", help="Language used when logging image quality diagnostics")
     parser.add_argument("--demo-text", default="Frame OCR demo\nOpenAI Vision HUD", help="Text rendered into the generated demo image")
     parser.add_argument("--keep-image", action="store_true", help="Keep the generated demo image instead of deleting it later")
     return parser
@@ -221,6 +224,10 @@ async def capture_from_frame(args, output_path: Path) -> Path:
             try:
                 image_bytes = await capture_photo_bytes(frame, queue, args)
                 validate_captured_jpeg(image_bytes)
+                report = analyze_image_bytes(image_bytes)
+                print(f"[vision] {report.summary(args.quality_locale)}")
+                if args.strict_image_quality and should_retry_capture(report):
+                    raise RuntimeError(report.summary(args.quality_locale))
                 output_path.write_bytes(image_bytes)
                 return output_path
             except Exception as exc:
