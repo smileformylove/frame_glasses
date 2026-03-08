@@ -149,6 +149,10 @@ def canceled_message(locale: str) -> str:
     return 'VOICE CODEX canceled.' if locale == 'en' else '已取消执行。'
 
 
+def expired_message(locale: str) -> str:
+    return 'VOICE CODEX confirmation timed out.' if locale == 'en' else '确认已超时，请重新发出命令。'
+
+
 def confirmation_prompt(intent: "BridgeIntent", locale: str = 'en') -> str:
     if locale == 'en':
         return f'Confirm {describe_intent(intent)}? Say confirm or cancel.'

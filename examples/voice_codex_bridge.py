@@ -1,6 +1,6 @@
 import argparse
 import asyncio
-from pathlib import Path
+import time
 
 from frame_utils import FrameUnicodeDisplay, compact_text
 from meeting_hud import (
@@ -17,10 +17,10 @@ from voice_codex_core import (
     canceled_message,
     confirmation_prompt,
     execute_intent,
+    expired_message,
     locale_for_args,
     parse_intent,
     requires_confirmation,
-    stop_message,
 )
 
 
@@ -55,6 +55,7 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument("--demo", action="store_true", help="Run a local demo without using the microphone")
     parser.add_argument("--demo-commands", default=DEFAULT_COMMANDS, help="Pipe-separated command phrases used in demo mode")
     parser.add_argument("--wake-word", default=None, help="Optional wake word such as codex or 眼镜; if set, only commands prefixed with it are acted on")
+    parser.add_argument("--confirm-timeout", type=float, default=12.0, help="Seconds before a pending confirmation expires")
     return parser
 
 
@@ -72,6 +73,39 @@ class ResultDisplay:
             await display.disconnect()
 
 
+async def resolve_voice_intent(args, raw_text: str, pending_intent, pending_expires_at: float):
+    locale = locale_for_args(args)
+    intent = parse_intent(raw_text, wake_word=args.wake_word)
+    confirmed = False
+
+    if pending_intent is not None and time.monotonic() > pending_expires_at:
+        if intent.action in ("confirm", "cancel"):
+            return expired_message(locale), False, None, 0.0
+        pending_intent = None
+        pending_expires_at = 0.0
+
+    if pending_intent is not None and intent.action == "ignored":
+        intent = parse_intent(raw_text, wake_word=None)
+
+    if pending_intent is not None:
+        if intent.action == "confirm":
+            intent = pending_intent
+            pending_intent = None
+            pending_expires_at = 0.0
+            confirmed = True
+        elif intent.action == "cancel":
+            return canceled_message(locale), False, None, 0.0
+        else:
+            pending_intent = None
+            pending_expires_at = 0.0
+
+    if requires_confirmation(intent) and not confirmed:
+        return confirmation_prompt(intent, locale), False, intent, time.monotonic() + args.confirm_timeout
+
+    message, should_exit = await execute_intent(args, intent)
+    return message, should_exit, pending_intent, pending_expires_at
+
+
 def compact_for_args(args, text: str) -> str:
     return compact_text(text, args.limit)
 
@@ -81,37 +115,20 @@ async def run_demo(args) -> None:
     args.compact_text = lambda text: compact_for_args(args, text)
     commands = [part.strip() for part in args.demo_commands.split("|") if part.strip()]
     pending_intent = None
+    pending_expires_at = 0.0
+
     for command_text in commands:
         print(f"[voice-codex] heard={command_text}")
-        intent = parse_intent(command_text, wake_word=args.wake_word)
-        confirmed = False
-        if pending_intent is not None and intent.action == "ignored":
-            intent = parse_intent(command_text, wake_word=None)
-        if pending_intent is not None:
-            if intent.action == "confirm":
-                intent = pending_intent
-                pending_intent = None
-                confirmed = True
-            elif intent.action == "cancel":
-                message, should_exit = canceled_message(locale_for_args(args)), False
-                pending_intent = None
-                print(f"[voice-codex] result={message}")
-                if not args.dry_run:
-                    await display.show(message)
-                continue
-            else:
-                pending_intent = None
-        if requires_confirmation(intent) and not confirmed:
-            pending_intent = intent
-            message, should_exit = confirmation_prompt(intent, locale_for_args(args)), False
-        else:
-            try:
-                message, should_exit = await execute_intent(args, intent)
-            except Exception as exc:
-                message, should_exit = f"VOICE CODEX error: {exc}", False
-        if message:
-            print(f"[voice-codex] result={message}")
-        if message and not args.dry_run:
+        try:
+            message, should_exit, pending_intent, pending_expires_at = await resolve_voice_intent(
+                args, command_text, pending_intent, pending_expires_at
+            )
+        except Exception as exc:
+            message, should_exit = f"VOICE CODEX error: {exc}", False
+        if not message:
+            continue
+        print(f"[voice-codex] result={message}")
+        if not args.dry_run:
             await display.show(message)
         if should_exit:
             break
@@ -129,6 +146,8 @@ async def run_live(args) -> None:
     args.compact_text = lambda text: compact_for_args(args, text)
     display = ResultDisplay(args)
     pending_intent = None
+    pending_expires_at = 0.0
+
     await display.show("VOICE CODEX ready. Say help, doctor, scan, run tests, ask codex, or exit.")
 
     while True:
@@ -144,32 +163,12 @@ async def run_live(args) -> None:
             continue
 
         print(f"[voice-codex] heard={text}")
-        intent = parse_intent(text, wake_word=args.wake_word)
-        confirmed = False
-        if pending_intent is not None and intent.action == "ignored":
-            intent = parse_intent(text, wake_word=None)
-        if pending_intent is not None:
-            if intent.action == "confirm":
-                intent = pending_intent
-                pending_intent = None
-                confirmed = True
-            elif intent.action == "cancel":
-                message, should_exit = canceled_message(locale_for_args(args)), False
-                pending_intent = None
-                print(f"[voice-codex] result={message}")
-                await display.show(message)
-                continue
-            else:
-                pending_intent = None
-
-        if requires_confirmation(intent) and not confirmed:
-            pending_intent = intent
-            message, should_exit = confirmation_prompt(intent, locale_for_args(args)), False
-        else:
-            try:
-                message, should_exit = await execute_intent(args, intent)
-            except Exception as exc:
-                message, should_exit = f"VOICE CODEX error: {exc}", False
+        try:
+            message, should_exit, pending_intent, pending_expires_at = await resolve_voice_intent(
+                args, text, pending_intent, pending_expires_at
+            )
+        except Exception as exc:
+            message, should_exit = f"VOICE CODEX error: {exc}", False
         if not message:
             continue
         print(f"[voice-codex] result={message}")

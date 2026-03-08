@@ -1,5 +1,6 @@
 import argparse
 import asyncio
+import time
 from pathlib import Path
 
 from frame_msg import FrameMsg, RxAudio
@@ -7,15 +8,19 @@ from frame_msg import FrameMsg, RxAudio
 from frame_audio_gate import AdaptiveRmsGate
 from frame_audio_profile import DEFAULT_PROFILE_PATH, load_profile
 from frame_audio_utils import compute_rms, pcm_bytes_to_float32, preprocess_for_whisper
-from frame_mic_live_hud import (
-    append_log,
-    choose_demo_lines,
-    send_status_text,
-    upload_runtime,
-)
+from frame_mic_live_hud import append_log, choose_demo_lines, send_status_text, upload_runtime
 from meeting_hud import FasterWhisperTranscriber
 from vision_hud import connect_frame_msg
-from voice_codex_core import DEFAULT_COMMANDS, confirmation_prompt, execute_intent, locale_for_args, parse_intent, requires_confirmation
+from voice_codex_core import (
+    DEFAULT_COMMANDS,
+    canceled_message,
+    confirmation_prompt,
+    execute_intent,
+    expired_message,
+    locale_for_args,
+    parse_intent,
+    requires_confirmation,
+)
 
 
 DEFAULT_DEMO_COMMANDS = DEFAULT_COMMANDS
@@ -63,9 +68,8 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument("--demo", action="store_true", help="Run a local demo without using the Frame microphone")
     parser.add_argument("--demo-commands", default=DEFAULT_DEMO_COMMANDS, help="Pipe-separated command phrases used in demo mode")
     parser.add_argument("--wake-word", default=None, help="Optional wake word such as codex or 眼镜; if set, only commands prefixed with it are acted on")
+    parser.add_argument("--confirm-timeout", type=float, default=12.0, help="Seconds before a pending confirmation expires")
     return parser
-
-
 
 
 def preflight_runtime(args) -> None:
@@ -108,42 +112,58 @@ def apply_audio_profile(args) -> None:
 def should_retry_exception(exc: Exception) -> bool:
     return not isinstance(exc, (ModuleNotFoundError, RuntimeError, ValueError))
 
+
 def compact_for_args(args, text: str) -> str:
     from frame_utils import compact_text
     return compact_text(text, args.limit)
+
+
+async def resolve_voice_intent(args, raw_text: str, pending_intent, pending_expires_at: float):
+    locale = locale_for_args(args)
+    intent = parse_intent(raw_text, wake_word=args.wake_word)
+    confirmed = False
+
+    if pending_intent is not None and time.monotonic() > pending_expires_at:
+        if intent.action in ("confirm", "cancel"):
+            return expired_message(locale), False, None, 0.0
+        pending_intent = None
+        pending_expires_at = 0.0
+
+    if pending_intent is not None and intent.action == "ignored":
+        intent = parse_intent(raw_text, wake_word=None)
+
+    if pending_intent is not None:
+        if intent.action == "confirm":
+            intent = pending_intent
+            pending_intent = None
+            pending_expires_at = 0.0
+            confirmed = True
+        elif intent.action == "cancel":
+            return canceled_message(locale), False, None, 0.0
+        else:
+            pending_intent = None
+            pending_expires_at = 0.0
+
+    if requires_confirmation(intent) and not confirmed:
+        return confirmation_prompt(intent, locale), False, intent, time.monotonic() + args.confirm_timeout
+
+    message, should_exit = await execute_intent(args, intent)
+    return message, should_exit, pending_intent, pending_expires_at
 
 
 async def run_demo(args) -> None:
     args.compact_text = lambda text: compact_for_args(args, text)
     commands = choose_demo_lines(args.demo_commands)
     pending_intent = None
+    pending_expires_at = 0.0
     for command_text in commands:
         print(f"[frame-mic-codex] heard={command_text}")
-        intent = parse_intent(command_text, wake_word=args.wake_word)
-        confirmed = False
-        if pending_intent is not None and intent.action == "ignored":
-            intent = parse_intent(command_text, wake_word=None)
-        if pending_intent is not None:
-            if intent.action == "confirm":
-                intent = pending_intent
-                pending_intent = None
-                confirmed = True
-            elif intent.action == "cancel":
-                message, should_exit = canceled_message(locale_for_args(args)), False
-                pending_intent = None
-                print(f"[frame-mic-codex] result={message}")
-                await send_status_text(None, message, args, unicode_mode=True)
-                continue
-            else:
-                pending_intent = None
-        if requires_confirmation(intent) and not confirmed:
-            pending_intent = intent
-            message, should_exit = confirmation_prompt(intent, locale_for_args(args)), False
-        else:
-            try:
-                message, should_exit = await execute_intent(args, intent)
-            except Exception as exc:
-                message, should_exit = f"VOICE CODEX error: {exc}", False
+        try:
+            message, should_exit, pending_intent, pending_expires_at = await resolve_voice_intent(
+                args, command_text, pending_intent, pending_expires_at
+            )
+        except Exception as exc:
+            message, should_exit = f"VOICE CODEX error: {exc}", False
         if not message:
             continue
         print(f"[frame-mic-codex] result={message}")
@@ -175,6 +195,7 @@ async def run_live_once(args) -> None:
     unicode_mode = True
     args.compact_text = lambda text: compact_for_args(args, text)
     pending_intent = None
+    pending_expires_at = 0.0
     rms_gate = AdaptiveRmsGate(args.min_rms, alpha=args.adaptive_alpha, multiplier=args.adaptive_multiplier, bias=args.adaptive_bias) if args.adaptive_rms else None
 
     await connect_frame_msg(frame, args.name)
@@ -215,33 +236,12 @@ async def run_live_once(args) -> None:
                 append_log(log_file, f"heard: {heard}")
                 print(f"[frame-mic-codex] heard={heard}")
 
-                intent = parse_intent(heard, wake_word=args.wake_word)
-                confirmed = False
-                if pending_intent is not None and intent.action == "ignored":
-                    intent = parse_intent(heard, wake_word=None)
-                if pending_intent is not None:
-                    if intent.action == "confirm":
-                        intent = pending_intent
-                        pending_intent = None
-                        confirmed = True
-                    elif intent.action == "cancel":
-                        message, should_exit = canceled_message(locale_for_args(args)), False
-                        pending_intent = None
-                        append_log(log_file, f"result: {message}")
-                        print(f"[frame-mic-codex] result={message}")
-                        await send_status_text(frame, message, args, unicode_mode)
-                        continue
-                    else:
-                        pending_intent = None
-
-                if requires_confirmation(intent) and not confirmed:
-                    pending_intent = intent
-                    message, should_exit = confirmation_prompt(intent, locale_for_args(args)), False
-                else:
-                    try:
-                        message, should_exit = await execute_intent(args, intent)
-                    except Exception as exc:
-                        message, should_exit = f"VOICE CODEX error: {exc}", False
+                try:
+                    message, should_exit, pending_intent, pending_expires_at = await resolve_voice_intent(
+                        args, heard, pending_intent, pending_expires_at
+                    )
+                except Exception as exc:
+                    message, should_exit = f"VOICE CODEX error: {exc}", False
                 append_log(log_file, f"result: {message}")
                 if not message:
                     continue
