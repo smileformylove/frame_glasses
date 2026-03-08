@@ -1440,6 +1440,7 @@ python examples/voice_codex_bridge.py --demo --dry-run --language zh --demo-comm
 ```
 
 这份当前任务会持久化到 `profiles/voice_task_state.json`。
+如果你再次启动 `frame-mic-codex`，当前任务现在也会在启动时直接显示到眼镜上。
 
 ## 25. 推荐下一步
 

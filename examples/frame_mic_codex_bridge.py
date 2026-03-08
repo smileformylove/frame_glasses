@@ -15,7 +15,7 @@ from speech_output import maybe_speak_result
 from vision_hud import connect_frame_msg
 from voice_cards import DEFAULT_CARD_STATE_PATH, set_cards, update_current_index
 from voice_context import DEFAULT_CONTEXT_PATH, load_last_message, save_last_message
-from voice_task_state import DEFAULT_TASK_STATE_PATH
+from voice_task_state import DEFAULT_TASK_STATE_PATH, get_current_task
 from voice_history import DEFAULT_HISTORY_PATH, append_history
 from voice_shortcuts import DEFAULT_SHORTCUTS_PATH, load_shortcuts
 from weather_profile import DEFAULT_WEATHER_PROFILE_PATH, load_weather_profile
@@ -181,6 +181,13 @@ def runtime_settings_summary(args) -> str:
     adaptive = 'on' if getattr(args, 'adaptive_rms', False) else 'off'
     return f"min_rms={args.min_rms:.4f} trim={args.trim_leading:.2f} adaptive={adaptive}"
 
+def startup_status_messages(args, settings: str):
+    messages = [f"VOICE CODEX ready. Say help, doctor, run tests, ask codex, or exit.\n{settings}"]
+    task = get_current_task(Path(args.task_state_file).expanduser())
+    if task:
+        messages.append(f"当前任务：{task.get('title', '')}")
+    return messages
+
 def should_retry_exception(exc: Exception) -> bool:
     return not isinstance(exc, (ModuleNotFoundError, RuntimeError, ValueError))
 
@@ -328,7 +335,15 @@ async def run_live_once(args) -> None:
     try:
         queue = await audio.attach(frame)
         await upload_runtime(frame)
-        await send_status_text(frame, f"VOICE CODEX ready. Say help, doctor, run tests, ask codex, or exit.\n{settings}", args, unicode_mode)
+        startup_messages = startup_status_messages(args, settings)
+        for message in startup_messages:
+            pages, page_delay = iter_result_segments(args, message)
+            set_cards(Path(args.card_state_file).expanduser(), args.card_state_key, pages, current_index=0)
+            for idx, page in enumerate(pages):
+                update_current_index(Path(args.card_state_file).expanduser(), args.card_state_key, idx)
+                await send_status_text(frame, page, args, unicode_mode)
+                if idx < len(pages) - 1:
+                    await asyncio.sleep(page_delay)
 
         while True:
             chunk = await queue.get()
