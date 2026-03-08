@@ -17,6 +17,7 @@ from command_summary import (
     summarize_scan_output,
     summarize_task_list_output,
 )
+from voice_cards import DEFAULT_CARD_STATE_PATH, get_current_card, shift_card
 from voice_history import DEFAULT_HISTORY_PATH, summarize_history
 from voice_task_state import (
     DEFAULT_TASK_STATE_PATH,
@@ -30,8 +31,8 @@ from voice_task_state import (
 from weather_time import current_time_text, fetch_weather
 
 
-DEFAULT_COMMANDS = "help|time|weather|doctor|scan frame|pair test|git status|list tasks|pin next task|run tests|start task summarize repo|current task|continue task|clear task|resume codex|code review|ask codex summarize the repo|repeat|history|why failed|details|confirm|cancel|exit"
-DEFAULT_HELP_TEXT = "VOICE CODEX help: time, weather, doctor, scan, pair test, git status, list tasks, pin next task, run tests, start task ..., current task, continue task, clear task, resume codex, code review, ask codex ..., repeat, why failed, details, confirm, cancel, exit"
+DEFAULT_COMMANDS = "help|time|weather|doctor|scan frame|pair test|git status|list tasks|pin next task|run tests|start task summarize repo|current task|continue task|clear task|recent tasks|previous task|next card|previous card|current card|resume codex|code review|ask codex summarize the repo|repeat|history|why failed|details|confirm|cancel|exit"
+DEFAULT_HELP_TEXT = "VOICE CODEX help: time, weather, doctor, scan, pair test, git status, list tasks, pin next task, run tests, start task ..., current task, continue task, clear task, recent tasks, previous task, next card, previous card, current card, resume codex, code review, ask codex ..., repeat, why failed, details, confirm, cancel, exit"
 EXIT_WORDS = ("exit", "quit", "stop", "结束", "退出", "停止")
 FILLER_PREFIXES = ("please ", "can you ", "could you ", "请", "帮我", "麻烦", "现在", "能不能")
 HELP_WORDS = ("help", "what can you do", "commands", "帮助")
@@ -55,6 +56,9 @@ CONTINUE_TASK_WORDS = ("continue task", "继续任务", "继续当前任务")
 CLEAR_TASK_WORDS = ("clear task", "清除任务", "结束任务")
 RECENT_TASKS_WORDS = ("recent tasks", "任务历史", "最近任务")
 PREVIOUS_TASK_WORDS = ("previous task", "switch previous task", "上一个任务", "切换到上一个任务")
+CARD_NEXT_WORDS = ("next card", "下一张", "下一页")
+CARD_PREV_WORDS = ("previous card", "上一张", "上一页")
+CARD_CURRENT_WORDS = ("current card", "当前卡片", "这一张")
 RESUME_CODEX_WORDS = ("resume codex", "resume last codex", "continue codex", "继续 codex", "继续上次 codex", "继续上次任务")
 CODE_REVIEW_WORDS = ("code review", "review code", "review repo", "代码审查", "代码 review", "审查代码", "检查代码")
 CODEX_PREFIXES = ("ask codex ", "codex ", "让 codex ", "请 codex ", "让 codex 帮我", "请 codex 帮我")
@@ -117,6 +121,9 @@ ACTION_PHRASES = {
     "task_clear": ("clear task", "清除任务", "结束任务"),
     "task_recent": ("recent tasks", "最近任务", "任务历史"),
     "task_previous": ("previous task", "上一个任务", "切换到上一个任务"),
+    "card_next": ("next card", "下一张", "下一页"),
+    "card_prev": ("previous card", "上一张", "上一页"),
+    "card_current": ("current card", "当前卡片", "这一张"),
     "codex_resume": ("resume codex", "continue codex", "继续上次任务", "继续上次 codex"),
     "codex_review": ("code review", "review code", "代码审查", "检查代码"),
     "confirm": ("confirm", "确认", "执行", "继续", "好的"),
@@ -278,6 +285,12 @@ def parse_intent(text: str, wake_word: Optional[str] = None, shortcuts=None) -> 
         return BridgeIntent("task_recent", raw=text)
     if any(word in lowered for word in PREVIOUS_TASK_WORDS):
         return BridgeIntent("task_previous", raw=text)
+    if any(word in lowered for word in CARD_NEXT_WORDS):
+        return BridgeIntent("card_next", raw=text)
+    if any(word in lowered for word in CARD_PREV_WORDS):
+        return BridgeIntent("card_prev", raw=text)
+    if any(word in lowered for word in CARD_CURRENT_WORDS):
+        return BridgeIntent("card_current", raw=text)
     for prefix in TASK_START_WORDS:
         if lowered.startswith(prefix):
             payload = lowered[len(prefix):].strip()
@@ -353,6 +366,12 @@ def describe_intent(intent: BridgeIntent, locale: str = 'en') -> str:
             return "查看最近任务"
         if intent.action == "task_previous":
             return "切换到上一个任务"
+        if intent.action == "card_next":
+            return "查看下一张卡片"
+        if intent.action == "card_prev":
+            return "查看上一张卡片"
+        if intent.action == "card_current":
+            return "查看当前卡片"
         return intent.action.replace("_", " ")
 
     if intent.action == "run_tests":
@@ -393,6 +412,12 @@ def describe_intent(intent: BridgeIntent, locale: str = 'en') -> str:
         return "show recent tasks"
     if intent.action == "task_previous":
         return "switch to previous task"
+    if intent.action == "card_next":
+        return "show next card"
+    if intent.action == "card_prev":
+        return "show previous card"
+    if intent.action == "card_current":
+        return "show current card"
     if intent.action == "task_start":
         return "start task"
     if intent.action == "task_status":
@@ -471,6 +496,12 @@ def dry_run_message(intent: BridgeIntent, args, locale: str) -> str:
         return 'Would show recent tasks' if locale == 'en' else '将查看最近任务'
     if intent.action == 'task_previous':
         return 'Would switch to the previous task' if locale == 'en' else '将切换到上一个任务'
+    if intent.action == 'card_next':
+        return 'Would show next card' if locale == 'en' else '将显示下一张卡片'
+    if intent.action == 'card_prev':
+        return 'Would show previous card' if locale == 'en' else '将显示上一张卡片'
+    if intent.action == 'card_current':
+        return 'Would show current card' if locale == 'en' else '将显示当前卡片'
     if intent.action == 'codex_resume':
         return 'Would resume the last Codex task' if locale == 'en' else '将继续最近一次 Codex 会话'
     if intent.action == 'codex_review':
@@ -718,6 +749,21 @@ async def execute_intent(args, intent: BridgeIntent) -> Tuple[str, bool]:
             return ("No previous task." if locale == "en" else "没有上一个任务。"), False
         title = task.get("title", "")
         return (f"Switched to: {title}" if locale == "en" else f"已切换到：{title}"), False
+    if intent.action == "card_next":
+        card = shift_card(Path(args.card_state_file).expanduser(), args.card_state_key, 1)
+        if not card:
+            return ("No next card." if locale == "en" else "没有下一张卡片。"), False
+        return card, False
+    if intent.action == "card_prev":
+        card = shift_card(Path(args.card_state_file).expanduser(), args.card_state_key, -1)
+        if not card:
+            return ("No previous card." if locale == "en" else "没有上一张卡片。"), False
+        return card, False
+    if intent.action == "card_current":
+        card = get_current_card(Path(args.card_state_file).expanduser(), args.card_state_key)
+        if not card:
+            return ("No current card." if locale == "en" else "当前没有卡片。"), False
+        return card, False
     if intent.action == "codex_resume":
         if args.dry_run:
             return dry_run_message(intent, args, locale), False
