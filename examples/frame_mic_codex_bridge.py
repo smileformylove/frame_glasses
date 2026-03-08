@@ -89,6 +89,7 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument("--card-results", action="store_true", help="Render multi-item outputs as card carousel pages")
     parser.add_argument("--card-max-chars", type=int, default=56, help="Maximum characters per card when card mode is enabled")
     parser.add_argument("--card-delay", type=float, default=1.6, help="Seconds to wait between cards")
+    parser.add_argument("--startup-delay", type=float, default=1.5, help="Seconds to keep each startup screen visible")
     parser.add_argument("--announce-high-priority", action="store_true", help="Show important results in larger text on the glasses")
     parser.add_argument("--speak-results", action="store_true", help="Speak results aloud using macOS say on the Mac mini")
     parser.add_argument("--speak-policy", choices=("off", "important", "all"), default="off", help="Speech policy for macOS say: off, only important results, or all results")
@@ -336,14 +337,18 @@ async def run_live_once(args) -> None:
         queue = await audio.attach(frame)
         await upload_runtime(frame)
         startup_messages = startup_status_messages(args, settings)
+        final_pages = None
         for message in startup_messages:
             pages, page_delay = iter_result_segments(args, message)
+            final_pages = pages
             set_cards(Path(args.card_state_file).expanduser(), args.card_state_key, pages, current_index=0)
             for idx, page in enumerate(pages):
                 update_current_index(Path(args.card_state_file).expanduser(), args.card_state_key, idx)
                 await send_status_text(frame, page, args, unicode_mode)
-                if idx < len(pages) - 1:
-                    await asyncio.sleep(page_delay)
+                await asyncio.sleep(args.startup_delay if idx == len(pages) - 1 else page_delay)
+        if final_pages:
+            set_cards(Path(args.card_state_file).expanduser(), args.card_state_key, final_pages, current_index=0)
+            await send_status_text(frame, final_pages[0], args, unicode_mode)
 
         while True:
             chunk = await queue.get()

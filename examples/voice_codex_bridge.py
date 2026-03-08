@@ -16,7 +16,7 @@ from speech_output import maybe_speak_result
 from vision_hud import choose_display
 from voice_cards import DEFAULT_CARD_STATE_PATH, set_cards, update_current_index
 from voice_context import DEFAULT_CONTEXT_PATH, load_last_message, save_last_message
-from voice_task_state import DEFAULT_TASK_STATE_PATH
+from voice_task_state import DEFAULT_TASK_STATE_PATH, get_current_task
 from voice_history import DEFAULT_HISTORY_PATH, append_history
 from voice_shortcuts import DEFAULT_SHORTCUTS_PATH, load_shortcuts
 from weather_profile import DEFAULT_WEATHER_PROFILE_PATH, load_weather_profile
@@ -77,6 +77,7 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument("--card-results", action="store_true", help="Render multi-item outputs as card carousel pages")
     parser.add_argument("--card-max-chars", type=int, default=56, help="Maximum characters per card when card mode is enabled")
     parser.add_argument("--card-delay", type=float, default=1.6, help="Seconds to wait between cards")
+    parser.add_argument("--startup-delay", type=float, default=1.5, help="Seconds to keep each startup screen visible")
     parser.add_argument("--announce-high-priority", action="store_true", help="Show important results in larger text on the glasses")
     parser.add_argument("--speak-results", action="store_true", help="Speak results aloud using macOS say on the Mac mini")
     parser.add_argument("--speak-policy", choices=("off", "important", "all"), default="off", help="Speech policy for macOS say: off, only important results, or all results")
@@ -211,6 +212,14 @@ def iter_result_segments(args, message: str):
     return [message], 0.0
 
 
+def startup_status_messages(args):
+    messages = ["VOICE CODEX ready. Say help, doctor, scan, run tests, ask codex, or exit."]
+    task = get_current_task(Path(args.task_state_file).expanduser())
+    if task:
+        messages.append(f"当前任务：{task.get('title', '')}")
+    return messages
+
+
 def compact_for_args(args, text: str) -> str:
     return compact_text(text, args.limit)
 
@@ -288,7 +297,19 @@ async def run_live(args) -> None:
     context_file = Path(args.context_file).expanduser()
     last_message = load_last_message(context_file, "voice-codex") or ""
 
-    await display.show("VOICE CODEX ready. Say help, doctor, scan, run tests, ask codex, or exit.")
+    startup_messages = startup_status_messages(args)
+    final_pages = None
+    for message in startup_messages:
+        pages, page_delay = iter_result_segments(args, message)
+        final_pages = pages
+        set_cards(Path(args.card_state_file).expanduser(), args.card_state_key, pages, current_index=0)
+        for idx, page in enumerate(pages):
+            update_current_index(Path(args.card_state_file).expanduser(), args.card_state_key, idx)
+            await display.show(page, priority="high" if "当前任务" in page else "normal")
+            await asyncio.sleep(args.startup_delay if idx == len(pages) - 1 else page_delay)
+    if final_pages:
+        set_cards(Path(args.card_state_file).expanduser(), args.card_state_key, final_pages, current_index=0)
+        await display.show(final_pages[0], priority="high" if "当前任务" in final_pages[0] else "normal")
 
     while True:
         audio_chunk = await asyncio.to_thread(capture_audio_chunk, args.listen_duration, args.samplerate, parse_audio_device(args.audio_device))

@@ -1274,6 +1274,12 @@ python examples/frame_mic_codex_bridge.py --name "Frame EF" --language zh --visu
 
 启用后你还可以直接说：`下一张`、`上一张`、`当前卡片`。
 
+如果你想做一个不依赖语音识别的屏幕演示：
+
+```bash
+python frame_lab.py screen-demo -- --name "Frame EF"
+```
+
 
 如果你还想让 Mac mini 直接语音播报结果：
 
