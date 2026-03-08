@@ -327,8 +327,7 @@ async def run_live_once(args) -> None:
                     save_last_message(context_file, "frame-mic-codex", message)
                     history_heard = pending_raw_text or heard
                     append_history(Path(args.history_file).expanduser(), {"bridge": "frame-mic-codex", "heard": history_heard, "action": effective_action, "result": message})
-            if pending_intent is None:
-                pending_raw_text = ""
+                    pending_raw_text = ""
                 await send_status_text(frame, message, args, unicode_mode)
                 if should_exit:
                     return
