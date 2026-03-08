@@ -69,6 +69,9 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument("--demo-commands", default=DEFAULT_COMMANDS, help="Pipe-separated command phrases used in demo mode")
     parser.add_argument("--wake-word", default=None, help="Optional wake word such as codex or 眼镜; if set, only commands prefixed with it are acted on")
     parser.add_argument("--confirm-timeout", type=float, default=12.0, help="Seconds before a pending confirmation expires")
+    parser.add_argument("--page-results", action="store_true", help="Split long results into multiple pages on the glasses")
+    parser.add_argument("--page-max-chars", type=int, default=90, help="Maximum characters per page when paginating results")
+    parser.add_argument("--page-delay", type=float, default=1.2, help="Seconds to wait between result pages")
     parser.add_argument("--announce-high-priority", action="store_true", help="Show important results in larger text on the glasses")
     parser.add_argument("--speak-results", action="store_true", help="Speak results aloud using macOS say on the Mac mini")
     parser.add_argument("--say-voice", default=None, help="Optional macOS voice name used by say")
@@ -174,6 +177,13 @@ async def resolve_voice_intent(args, raw_text: str, pending_intent, pending_raw_
     return message, should_exit, pending_intent, confirmed_raw_text if confirmed else pending_raw_text, pending_expires_at, intent.action
 
 
+def iter_result_pages(args, message: str):
+    if not args.page_results:
+        return [message]
+    if len(message) <= args.page_max_chars and ' | ' not in message and ' ｜ ' not in message and '\n' not in message:
+        return [message]
+    return paginate_text(message, max_chars=args.page_max_chars, include_index=True)
+
 def compact_for_args(args, text: str) -> str:
     return compact_text(text, args.limit)
 
@@ -217,7 +227,11 @@ async def run_demo(args) -> None:
             if pending_intent is None:
                 pending_raw_text = ""
         if not args.dry_run:
-            await display.show(message, priority="high" if should_exit or ("CODEX" in message) or ("测试" in message) else "normal")
+            pages = iter_result_pages(args, message)
+            for idx, page in enumerate(pages):
+                await display.show(page, priority="high" if should_exit or ("CODEX" in page) or ("测试" in page) else "normal")
+                if idx < len(pages) - 1:
+                    await asyncio.sleep(args.page_delay)
         await speak_text(message, enabled=args.speak_results, voice=args.say_voice, rate=args.say_rate)
         await speak_text(message, enabled=args.speak_results, voice=args.say_voice, rate=args.say_rate)
         if should_exit:
@@ -279,7 +293,11 @@ async def run_live(args) -> None:
             last_message = message
             save_last_message(context_file, "voice-codex", message)
             append_history(Path(args.history_file).expanduser(), {"bridge": "voice-codex", "heard": text, "action": effective_action, "result": message})
-        await display.show(message, priority="high" if should_exit or ("CODEX" in message) or ("测试" in message) else "normal")
+        pages = iter_result_pages(args, message)
+        for idx, page in enumerate(pages):
+            await display.show(page, priority="high" if should_exit or ("CODEX" in page) or ("测试" in page) else "normal")
+            if idx < len(pages) - 1:
+                await asyncio.sleep(args.page_delay)
         if should_exit:
             break
 

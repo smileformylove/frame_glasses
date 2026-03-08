@@ -8,7 +8,7 @@ from frame_msg import FrameMsg, RxAudio
 from frame_audio_gate import AdaptiveRmsGate
 from frame_audio_profile import DEFAULT_PROFILE_PATH, load_profile
 from frame_audio_utils import compute_rms, pcm_bytes_to_float32, preprocess_for_whisper
-from frame_utils import display_kwargs_for_priority
+from frame_utils import display_kwargs_for_priority, paginate_text
 from frame_mic_live_hud import append_log, choose_demo_lines, send_status_text, upload_runtime
 from meeting_hud import FasterWhisperTranscriber
 from speech_output import speak_text
@@ -81,6 +81,9 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument("--demo-commands", default=DEFAULT_DEMO_COMMANDS, help="Pipe-separated command phrases used in demo mode")
     parser.add_argument("--wake-word", default=None, help="Optional wake word such as codex or 眼镜; if set, only commands prefixed with it are acted on")
     parser.add_argument("--confirm-timeout", type=float, default=12.0, help="Seconds before a pending confirmation expires")
+    parser.add_argument("--page-results", action="store_true", help="Split long results into multiple pages on the glasses")
+    parser.add_argument("--page-max-chars", type=int, default=90, help="Maximum characters per page when paginating results")
+    parser.add_argument("--page-delay", type=float, default=1.2, help="Seconds to wait between result pages")
     parser.add_argument("--announce-high-priority", action="store_true", help="Show important results in larger text on the glasses")
     parser.add_argument("--speak-results", action="store_true", help="Speak results aloud using macOS say on the Mac mini")
     parser.add_argument("--say-voice", default=None, help="Optional macOS voice name used by say")
@@ -155,6 +158,13 @@ def runtime_settings_summary(args) -> str:
 def should_retry_exception(exc: Exception) -> bool:
     return not isinstance(exc, (ModuleNotFoundError, RuntimeError, ValueError))
 
+
+def iter_result_pages(args, message: str):
+    if not args.page_results:
+        return [message]
+    if len(message) <= args.page_max_chars and ' | ' not in message and ' ｜ ' not in message and '\n' not in message:
+        return [message]
+    return paginate_text(message, max_chars=args.page_max_chars, include_index=True)
 
 def compact_for_args(args, text: str) -> str:
     from frame_utils import compact_text
@@ -239,7 +249,11 @@ async def run_demo(args) -> None:
             append_history(Path(args.history_file).expanduser(), {"bridge": "frame-mic-codex", "heard": history_heard, "action": effective_action, "result": message})
             if pending_intent is None:
                 pending_raw_text = ""
-        await send_status_text(None, message, args, unicode_mode=True)
+        pages = iter_result_pages(args, message)
+        for idx, page in enumerate(pages):
+            await send_status_text(None, page, args, unicode_mode=True)
+            if idx < len(pages) - 1:
+                await asyncio.sleep(args.page_delay)
         await speak_text(message, enabled=args.speak_results, voice=args.say_voice, rate=args.say_rate)
         if should_exit:
             break
@@ -340,14 +354,21 @@ async def run_live_once(args) -> None:
                     history_heard = pending_raw_text or heard
                     append_history(Path(args.history_file).expanduser(), {"bridge": "frame-mic-codex", "heard": history_heard, "action": effective_action, "result": message})
                     pending_raw_text = ""
+                pages = iter_result_pages(args, message)
                 if args.announce_high_priority and (should_exit or ("CODEX" in message) or ("测试" in message)):
                     original = (args.font_size, args.display_width, args.max_rows)
                     overrides = display_kwargs_for_priority("high", args.font_size, args.display_width, args.max_rows)
                     args.font_size, args.display_width, args.max_rows = overrides["font_size"], overrides["display_width"], overrides["max_rows"]
-                    await send_status_text(frame, message, args, unicode_mode)
+                    for idx, page in enumerate(pages):
+                        await send_status_text(frame, page, args, unicode_mode)
+                        if idx < len(pages) - 1:
+                            await asyncio.sleep(args.page_delay)
                     args.font_size, args.display_width, args.max_rows = original
                 else:
-                    await send_status_text(frame, message, args, unicode_mode)
+                    for idx, page in enumerate(pages):
+                        await send_status_text(frame, page, args, unicode_mode)
+                        if idx < len(pages) - 1:
+                            await asyncio.sleep(args.page_delay)
                 await speak_text(message, enabled=args.speak_results, voice=args.say_voice, rate=args.say_rate)
                 if should_exit:
                     return

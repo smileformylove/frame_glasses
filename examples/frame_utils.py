@@ -229,6 +229,57 @@ def display_kwargs_for_priority(priority: str, font_size: int, display_width: in
         'max_rows': max_rows,
     }
 
+
+
+def paginate_text(text: str, max_chars: int = 120, include_index: bool = True):
+    raw = text.strip()
+    if not raw:
+        return [raw]
+
+    separators = []
+    if ' | ' in raw:
+        separators.append(' | ')
+    if ' ｜ ' in raw:
+        separators.append(' ｜ ')
+    if '\n' in raw:
+        separators.append('\n')
+
+    units = [raw]
+    for sep in separators:
+        next_units = []
+        for unit in units:
+            if sep in unit:
+                next_units.extend(part.strip() for part in unit.split(sep) if part.strip())
+            else:
+                next_units.append(unit)
+        units = next_units
+
+    pages = []
+    current = ''
+    for unit in units:
+        candidate = unit if not current else f"{current} | {unit}"
+        if len(candidate) <= max_chars:
+            current = candidate
+            continue
+        if current:
+            pages.append(current)
+        if len(unit) <= max_chars:
+            current = unit
+        else:
+            start_idx = 0
+            while start_idx < len(unit):
+                pages.append(unit[start_idx:start_idx + max_chars])
+                start_idx += max_chars
+            current = ''
+    if current:
+        pages.append(current)
+
+    if not pages:
+        pages = [raw[:max_chars]]
+    if include_index and len(pages) > 1:
+        total = len(pages)
+        return [f"[{index + 1}/{total}] {page}" for index, page in enumerate(pages)]
+    return pages
 def resolve_unicode_font(font_family: Optional[str] = None) -> Optional[str]:
     if font_family:
         expanded = Path(font_family).expanduser()
