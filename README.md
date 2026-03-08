@@ -93,6 +93,12 @@ pip install -r requirements-speaker.txt
 pip install -r requirements-voice.txt
 ```
 
+Agent HUD 指标依赖：
+
+```bash
+pip install -r requirements-agent.txt
+```
+
 视觉 HUD 依赖：
 
 ```bash
@@ -851,6 +857,20 @@ python examples/agent_hud.py tail /tmp/app.log --prefix LOG --level warn
 python examples/agent_hud.py tail /tmp/app.log --from-start --max-lines 20
 ```
 
+### 16.3.3 推系统指标
+
+把 Mac mini 当前系统状态持续推到眼镜：
+
+```bash
+python examples/agent_hud.py metrics --interval 5 --pin-latest
+```
+
+只跑三次用于测试：
+
+```bash
+python examples/agent_hud.py metrics --iterations 3 --interval 1
+```
+
 ### 16.4 统一入口
 
 ```bash
@@ -861,6 +881,7 @@ python frame_lab.py agent-hud -- clear
 python frame_lab.py agent-hud -- health
 python frame_lab.py agent-hud -- watch -- -- python3 -c "print('build ok')"
 python frame_lab.py agent-hud -- tail /tmp/app.log --prefix LOG
+python frame_lab.py agent-hud -- metrics --iterations 3 --interval 1
 ```
 
 ### 16.4.1 直接包一层命令

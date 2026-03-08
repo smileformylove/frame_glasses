@@ -330,6 +330,16 @@ def build_parser() -> argparse.ArgumentParser:
     tail.add_argument("--from-start", action="store_true", help="Read the file from the start instead of only new lines")
     tail.add_argument("--max-lines", type=int, default=0, help="Stop after sending N lines, 0 means unlimited")
 
+    metrics = subparsers.add_parser("metrics", help="Send periodic Mac mini system metrics to Agent HUD")
+    metrics.add_argument("--url", default=f"{DEFAULT_URL}/notify", help="Notification endpoint URL")
+    metrics.add_argument("--prefix", default="STAT", help="Notification prefix")
+    metrics.add_argument("--source", default="metrics", help="Notification source label")
+    metrics.add_argument("--interval", type=float, default=5.0, help="Seconds between metric updates")
+    metrics.add_argument("--iterations", type=int, default=0, help="Stop after N updates, 0 means run forever")
+    metrics.add_argument("--pin-latest", action="store_true", help="Pin the latest metrics string")
+    metrics.add_argument("--clear-pin-on-exit", action="store_true", help="Clear the pinned metrics on exit")
+    metrics.add_argument("--max-text", type=int, default=140, help="Maximum metrics text length")
+
     return parser
 
 
@@ -466,6 +476,37 @@ async def run_tail(args) -> None:
                 break
 
 
+def collect_metrics(max_text: int) -> str:
+    try:
+        import psutil
+    except ImportError as exc:
+        raise RuntimeError("psutil is required for agent_hud metrics mode. Install it with: pip install -r requirements-agent.txt") from exc
+
+    cpu = psutil.cpu_percent(interval=None)
+    mem = psutil.virtual_memory().percent
+    disk = psutil.disk_usage("/").percent
+    load = getattr(__import__("os"), "getloadavg", lambda: (0.0, 0.0, 0.0))()
+    summary = f"cpu {cpu:.0f}% mem {mem:.0f}% disk {disk:.0f}% load {load[0]:.2f}"
+    return compact_text(summary, max_text)
+
+
+async def run_metrics(args) -> None:
+    iteration = 0
+    while True:
+        iteration += 1
+        summary = collect_metrics(args.max_text)
+        if args.pin_latest:
+            send_notification(pin_url(args.url), summary, args.prefix, "info", args.source, sticky=True)
+        else:
+            send_notification(args.url, summary, args.prefix, "info", args.source)
+        if args.iterations and iteration >= args.iterations:
+            break
+        await asyncio.sleep(args.interval)
+
+    if args.clear_pin_on_exit:
+        clear_notification(clear_url(args.url))
+
+
 async def async_main() -> None:
     args = build_parser().parse_args()
     if args.command == "send":
@@ -497,6 +538,9 @@ async def async_main() -> None:
         return
     if args.command == "tail":
         await run_tail(args)
+        return
+    if args.command == "metrics":
+        await run_metrics(args)
         return
     if args.command == "serve":
         display = NotificationDisplay(

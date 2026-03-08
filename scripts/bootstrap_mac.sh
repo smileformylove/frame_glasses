@@ -70,6 +70,7 @@ if [[ "$MODE" == "full" ]]; then
   pip install -r requirements-speaker.txt
   pip install -r requirements-vision.txt
   pip install -r requirements-voice.txt
+  pip install -r requirements-agent.txt
 else
   echo "[bootstrap] Skipping optional requirements in minimal mode"
 fi
