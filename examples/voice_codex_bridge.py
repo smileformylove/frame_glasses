@@ -14,6 +14,7 @@ from meeting_hud import (
 )
 from speech_output import maybe_speak_result
 from vision_hud import choose_display
+from voice_cards import DEFAULT_CARD_STATE_PATH, set_cards, update_current_index
 from voice_context import DEFAULT_CONTEXT_PATH, load_last_message, save_last_message
 from voice_task_state import DEFAULT_TASK_STATE_PATH
 from voice_history import DEFAULT_HISTORY_PATH, append_history
@@ -84,6 +85,8 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument("--shortcuts-file", default=str(DEFAULT_SHORTCUTS_PATH), help="Path to custom voice shortcuts JSON")
     parser.add_argument("--context-file", default=str(DEFAULT_CONTEXT_PATH), help="Path to persisted voice result context JSON")
     parser.add_argument("--history-file", default=str(DEFAULT_HISTORY_PATH), help="Path to persisted voice history JSON")
+    parser.add_argument("--card-state-file", default=str(DEFAULT_CARD_STATE_PATH), help="Path to persisted card carousel state JSON")
+    parser.add_argument("--card-state-key", default="voice-codex", help="Key used for persisted card carousel state")
     parser.add_argument("--task-state-file", default=str(DEFAULT_TASK_STATE_PATH), help="Path to persisted current-task state JSON")
     return parser
 
@@ -251,8 +254,14 @@ async def run_demo(args) -> None:
             if pending_intent is None:
                 pending_raw_text = ""
         if not args.dry_run:
-            pages, page_delay = iter_result_segments(args, message)
+            if effective_action in ("card_next", "card_prev", "card_current"):
+                pages, page_delay = [message], 0.0
+            else:
+                pages, page_delay = iter_result_segments(args, message)
+                set_cards(Path(args.card_state_file).expanduser(), args.card_state_key, pages, current_index=0)
             for idx, page in enumerate(pages):
+                if effective_action not in ("card_next", "card_prev", "card_current"):
+                    update_current_index(Path(args.card_state_file).expanduser(), args.card_state_key, idx)
                 await display.show(page, priority="high" if should_exit or ("CODEX" in page) or ("测试" in page) else "normal")
                 if idx < len(pages) - 1:
                     await asyncio.sleep(page_delay)
@@ -317,7 +326,9 @@ async def run_live(args) -> None:
             save_last_message(context_file, "voice-codex", message)
             append_history(Path(args.history_file).expanduser(), {"bridge": "voice-codex", "heard": text, "action": effective_action, "result": message})
         pages, page_delay = iter_result_segments(args, message)
+        set_cards(Path(args.card_state_file).expanduser(), args.card_state_key, pages, current_index=0)
         for idx, page in enumerate(pages):
+            update_current_index(Path(args.card_state_file).expanduser(), args.card_state_key, idx)
             await display.show(page, priority="high" if should_exit or ("CODEX" in page) or ("测试" in page) else "normal")
             if idx < len(pages) - 1:
                 await asyncio.sleep(page_delay)

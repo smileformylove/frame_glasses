@@ -1269,6 +1269,8 @@ python examples/frame_mic_codex_bridge.py --name "Frame EF" --language zh --visu
 - 更大的字体和更少的行数
 - 更适合 history / 最近任务 的卡片轮播
 
+启用后你还可以直接说：`下一张`、`上一张`、`当前卡片`。
+
 
 如果你还想让 Mac mini 直接语音播报结果：
 
@@ -1423,6 +1425,9 @@ python frame_lab.py voice-shortcuts -- list
 - `continue task` / `继续任务`
 - `recent tasks` / `最近任务`
 - `previous task` / `上一个任务`
+- `next card` / `下一张`
+- `previous card` / `上一张`
+- `current card` / `当前卡片`
 - `clear task` / `清除任务`
 
 例如：
