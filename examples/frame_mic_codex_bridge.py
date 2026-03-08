@@ -11,7 +11,7 @@ from frame_audio_utils import compute_rms, pcm_bytes_to_float32, preprocess_for_
 from frame_utils import display_kwargs_for_priority, paginate_text
 from frame_mic_live_hud import append_log, choose_demo_lines, send_status_text, upload_runtime
 from meeting_hud import FasterWhisperTranscriber
-from speech_output import speak_text
+from speech_output import maybe_speak_result
 from vision_hud import connect_frame_msg
 from voice_context import DEFAULT_CONTEXT_PATH, load_last_message, save_last_message
 from voice_task_state import DEFAULT_TASK_STATE_PATH
@@ -86,6 +86,7 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument("--page-delay", type=float, default=1.2, help="Seconds to wait between result pages")
     parser.add_argument("--announce-high-priority", action="store_true", help="Show important results in larger text on the glasses")
     parser.add_argument("--speak-results", action="store_true", help="Speak results aloud using macOS say on the Mac mini")
+    parser.add_argument("--speak-policy", choices=("off", "important", "all"), default="off", help="Speech policy for macOS say: off, only important results, or all results")
     parser.add_argument("--say-voice", default=None, help="Optional macOS voice name used by say")
     parser.add_argument("--say-rate", type=int, default=None, help="Optional speech rate for macOS say")
     parser.add_argument("--shortcuts-file", default=str(DEFAULT_SHORTCUTS_PATH), help="Path to custom voice shortcuts JSON")
@@ -254,7 +255,7 @@ async def run_demo(args) -> None:
             await send_status_text(None, page, args, unicode_mode=True)
             if idx < len(pages) - 1:
                 await asyncio.sleep(args.page_delay)
-        await speak_text(message, enabled=args.speak_results, voice=args.say_voice, rate=args.say_rate)
+        await maybe_speak_result(args, message, should_exit=should_exit)
         if should_exit:
             break
 
@@ -369,7 +370,7 @@ async def run_live_once(args) -> None:
                         await send_status_text(frame, page, args, unicode_mode)
                         if idx < len(pages) - 1:
                             await asyncio.sleep(args.page_delay)
-                await speak_text(message, enabled=args.speak_results, voice=args.say_voice, rate=args.say_rate)
+                await maybe_speak_result(args, message, should_exit=should_exit)
                 if should_exit:
                     return
     finally:

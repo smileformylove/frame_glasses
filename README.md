@@ -1261,6 +1261,12 @@ python examples/frame_mic_codex_bridge.py --name "Frame EF" --language zh --rend
 python examples/frame_mic_codex_bridge.py --name "Frame EF" --language zh --render-mode unicode --speak-results
 ```
 
+如果你只想播报重要结果，减少噪声：
+
+```bash
+python examples/frame_mic_codex_bridge.py --name "Frame EF" --language zh --render-mode unicode --speak-policy important
+```
+
 ### 20.3 统一入口
 
 ```bash
