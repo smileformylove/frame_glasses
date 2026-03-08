@@ -14,11 +14,13 @@ from meeting_hud import (
 from vision_hud import choose_display
 from voice_codex_core import (
     DEFAULT_COMMANDS,
-    DEFAULT_HELP_TEXT,
+    canceled_message,
     confirmation_prompt,
     execute_intent,
+    locale_for_args,
     parse_intent,
     requires_confirmation,
+    stop_message,
 )
 
 
@@ -91,7 +93,7 @@ async def run_demo(args) -> None:
                 pending_intent = None
                 confirmed = True
             elif intent.action == "cancel":
-                message, should_exit = "VOICE CODEX canceled.", False
+                message, should_exit = canceled_message(locale_for_args(args)), False
                 pending_intent = None
                 print(f"[voice-codex] result={message}")
                 if not args.dry_run:
@@ -101,7 +103,7 @@ async def run_demo(args) -> None:
                 pending_intent = None
         if requires_confirmation(intent) and not confirmed:
             pending_intent = intent
-            message, should_exit = confirmation_prompt(intent), False
+            message, should_exit = confirmation_prompt(intent, locale_for_args(args)), False
         else:
             try:
                 message, should_exit = await execute_intent(args, intent)
@@ -152,7 +154,7 @@ async def run_live(args) -> None:
                 pending_intent = None
                 confirmed = True
             elif intent.action == "cancel":
-                message, should_exit = "VOICE CODEX canceled.", False
+                message, should_exit = canceled_message(locale_for_args(args)), False
                 pending_intent = None
                 print(f"[voice-codex] result={message}")
                 await display.show(message)
@@ -162,7 +164,7 @@ async def run_live(args) -> None:
 
         if requires_confirmation(intent) and not confirmed:
             pending_intent = intent
-            message, should_exit = confirmation_prompt(intent), False
+            message, should_exit = confirmation_prompt(intent, locale_for_args(args)), False
         else:
             try:
                 message, should_exit = await execute_intent(args, intent)

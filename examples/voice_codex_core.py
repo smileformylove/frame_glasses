@@ -118,6 +118,43 @@ def strip_wake_word(text: str, wake_word: Optional[str]) -> Optional[str]:
     return None
 
 
+
+
+def locale_for_args(args) -> str:
+    language = (getattr(args, 'language', None) or '').lower()
+    if language.startswith(('zh', 'ja', 'ko')):
+        return 'zh'
+    return 'en'
+
+
+def help_message(locale: str) -> str:
+    return DEFAULT_HELP_TEXT if locale == 'en' else '语音 Codex：可说 doctor、scan、pair test、git status、list tasks、pin next task、run tests、ask codex、confirm、cancel、exit'
+
+
+def stop_message(locale: str) -> str:
+    return 'VOICE CODEX stopping' if locale == 'en' else '语音 Codex 已停止'
+
+
+def unknown_message(locale: str) -> str:
+    return 'VOICE CODEX unknown command. Say help.' if locale == 'en' else '语音 Codex 没听懂，请说 help。'
+
+
+def nothing_pending(locale: str, kind: str) -> str:
+    if locale == 'en':
+        return f'VOICE CODEX nothing pending to {kind}.'
+    return '当前没有待确认操作。'
+
+
+def canceled_message(locale: str) -> str:
+    return 'VOICE CODEX canceled.' if locale == 'en' else '已取消执行。'
+
+
+def confirmation_prompt(intent: "BridgeIntent", locale: str = 'en') -> str:
+    if locale == 'en':
+        return f'Confirm {describe_intent(intent)}? Say confirm or cancel.'
+    return f'确认执行：{describe_intent(intent)}？请说 confirm 或 cancel。'
+
+
 class BridgeIntent:
     def __init__(self, action: str, payload: Optional[str] = None, raw: str = ""):
         self.action = action
@@ -201,10 +238,6 @@ def describe_intent(intent: BridgeIntent) -> str:
     return intent.action.replace("_", " ")
 
 
-def confirmation_prompt(intent: BridgeIntent) -> str:
-    return f"Confirm {describe_intent(intent)}? Say confirm or cancel."
-
-
 async def run_subprocess(command: list[str], cwd: Path, dry_run: bool) -> Tuple[int, str]:
     if dry_run:
         return 0, f"DRY RUN: {' '.join(command)}"
@@ -261,45 +294,46 @@ async def run_codex_exec(args, prompt: str) -> Tuple[int, str]:
 
 async def execute_intent(args, intent: BridgeIntent) -> Tuple[str, bool]:
     repo = Path(args.repo).expanduser().resolve()
+    locale = locale_for_args(args)
     if intent.action == "help":
-        return DEFAULT_HELP_TEXT, False
+        return help_message(locale), False
     if intent.action == "exit":
-        return "VOICE CODEX stopping", True
+        return stop_message(locale), True
     if intent.action == "ignored":
         return "", False
     if intent.action == "unknown":
-        return "VOICE CODEX unknown command. Say help.", False
+        return unknown_message(locale), False
     if intent.action == "confirm":
-        return "VOICE CODEX nothing pending to confirm.", False
+        return nothing_pending(locale, "confirm"), False
     if intent.action == "cancel":
-        return "VOICE CODEX nothing pending to cancel.", False
+        return nothing_pending(locale, "cancel"), False
 
     if intent.action == "doctor":
         code, output = await run_subprocess([sys.executable, str(repo / "frame_lab.py"), "doctor"], repo, args.dry_run)
-        return args.compact_text(summarize_doctor_output(output or f"doctor exit {code}")), False
+        return args.compact_text(summarize_doctor_output(output or f"doctor exit {code}", locale=locale)), False
     if intent.action == "scan":
         code, output = await run_subprocess([sys.executable, str(repo / "frame_lab.py"), "scan"], repo, args.dry_run)
-        return args.compact_text(summarize_scan_output(output or f"scan exit {code}")), False
+        return args.compact_text(summarize_scan_output(output or f"scan exit {code}", locale=locale)), False
     if intent.action == "pair_test":
         code, output = await run_subprocess([sys.executable, str(repo / "frame_lab.py"), "pair-test", "--", "--text", "Hello from voice bridge"], repo, args.dry_run)
-        return args.compact_text(summarize_pair_test_output(output or f"pair-test exit {code}")), False
+        return args.compact_text(summarize_pair_test_output(output or f"pair-test exit {code}", locale=locale)), False
     if intent.action == "list_tasks":
         code, output = await run_subprocess([sys.executable, str(repo / "frame_lab.py"), "task-board", "--", "list"], repo, args.dry_run)
-        return args.compact_text(summarize_task_list_output(output or f"task list exit {code}")), False
+        return args.compact_text(summarize_task_list_output(output or f"task list exit {code}", locale=locale)), False
     if intent.action == "pin_next_task":
         code, output = await run_subprocess([sys.executable, str(repo / "frame_lab.py"), "task-board", "--", "pin-next"], repo, args.dry_run)
         return args.compact_text(output or f"pin-next exit {code}"), False
     if intent.action == "git_status":
         code, output = await run_shell_text("git status --short --branch", repo, args.dry_run)
-        return args.compact_text(summarize_git_status(output or f"git status exit {code}")), False
+        return args.compact_text(summarize_git_status(output or f"git status exit {code}", locale=locale)), False
     if intent.action == "run_tests":
         code, output = await run_shell_text(args.test_command, repo, args.dry_run)
         label = "tests passed" if code == 0 else f"tests failed ({code})"
-        detail = args.compact_text(summarize_pytest_output(output or label, code))
+        detail = args.compact_text(summarize_pytest_output(output or label, code, locale=locale))
         return detail, False
     if intent.action == "codex_exec":
         code, output = await run_codex_exec(args, intent.payload or "")
-        label = summarize_codex_output(output or f"codex exit {code}")
+        label = summarize_codex_output(output or f"codex exit {code}", locale=locale)
         return args.compact_text(f"CODEX {label}"), False
 
     return "VOICE CODEX unsupported action.", False

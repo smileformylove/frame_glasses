@@ -15,7 +15,7 @@ from frame_mic_live_hud import (
 )
 from meeting_hud import FasterWhisperTranscriber
 from vision_hud import connect_frame_msg
-from voice_codex_core import DEFAULT_COMMANDS, confirmation_prompt, execute_intent, parse_intent, requires_confirmation
+from voice_codex_core import DEFAULT_COMMANDS, confirmation_prompt, execute_intent, locale_for_args, parse_intent, requires_confirmation
 
 
 DEFAULT_DEMO_COMMANDS = DEFAULT_COMMANDS
@@ -129,7 +129,7 @@ async def run_demo(args) -> None:
                 pending_intent = None
                 confirmed = True
             elif intent.action == "cancel":
-                message, should_exit = "VOICE CODEX canceled.", False
+                message, should_exit = canceled_message(locale_for_args(args)), False
                 pending_intent = None
                 print(f"[frame-mic-codex] result={message}")
                 await send_status_text(None, message, args, unicode_mode=True)
@@ -138,7 +138,7 @@ async def run_demo(args) -> None:
                 pending_intent = None
         if requires_confirmation(intent) and not confirmed:
             pending_intent = intent
-            message, should_exit = confirmation_prompt(intent), False
+            message, should_exit = confirmation_prompt(intent, locale_for_args(args)), False
         else:
             try:
                 message, should_exit = await execute_intent(args, intent)
@@ -225,7 +225,7 @@ async def run_live_once(args) -> None:
                         pending_intent = None
                         confirmed = True
                     elif intent.action == "cancel":
-                        message, should_exit = "VOICE CODEX canceled.", False
+                        message, should_exit = canceled_message(locale_for_args(args)), False
                         pending_intent = None
                         append_log(log_file, f"result: {message}")
                         print(f"[frame-mic-codex] result={message}")
@@ -236,7 +236,7 @@ async def run_live_once(args) -> None:
 
                 if requires_confirmation(intent) and not confirmed:
                     pending_intent = intent
-                    message, should_exit = confirmation_prompt(intent), False
+                    message, should_exit = confirmation_prompt(intent, locale_for_args(args)), False
                 else:
                     try:
                         message, should_exit = await execute_intent(args, intent)
