@@ -56,6 +56,8 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument("--compute-type", default="int8", help="Whisper compute type")
     parser.add_argument("--beam-size", type=int, default=1, help="Whisper beam size")
     parser.add_argument("--test-command", default="pytest -q", help="Shell command used for the 'run tests' voice action")
+    parser.add_argument("--default-weather-location", default="Shanghai", help="Default location used for weather queries without an explicit place")
+    parser.add_argument("--time-zone", default=None, help="Optional IANA time zone such as Asia/Shanghai")
     parser.add_argument("--codex-bin", default="codex", help="Path to the Codex CLI executable")
     parser.add_argument("--codex-sandbox", default="workspace-write", help="Sandbox mode used for codex exec")
     parser.add_argument("--codex-full-auto", action="store_true", help="Pass --full-auto to codex exec")

@@ -19,13 +19,16 @@ from command_summary import (
 )
 from voice_history import DEFAULT_HISTORY_PATH, summarize_history
 from voice_task_state import DEFAULT_TASK_STATE_PATH, clear_current_task, get_current_task, set_current_task
+from weather_time import current_time_text, fetch_weather
 
 
-DEFAULT_COMMANDS = "help|doctor|scan frame|pair test|git status|list tasks|pin next task|run tests|start task summarize repo|current task|continue task|clear task|resume codex|code review|ask codex summarize the repo|repeat|history|why failed|details|confirm|cancel|exit"
-DEFAULT_HELP_TEXT = "VOICE CODEX help: doctor, scan, pair test, git status, list tasks, pin next task, run tests, start task ..., current task, continue task, clear task, resume codex, code review, ask codex ..., repeat, why failed, details, confirm, cancel, exit"
+DEFAULT_COMMANDS = "help|time|weather|doctor|scan frame|pair test|git status|list tasks|pin next task|run tests|start task summarize repo|current task|continue task|clear task|resume codex|code review|ask codex summarize the repo|repeat|history|why failed|details|confirm|cancel|exit"
+DEFAULT_HELP_TEXT = "VOICE CODEX help: time, weather, doctor, scan, pair test, git status, list tasks, pin next task, run tests, start task ..., current task, continue task, clear task, resume codex, code review, ask codex ..., repeat, why failed, details, confirm, cancel, exit"
 EXIT_WORDS = ("exit", "quit", "stop", "结束", "退出", "停止")
 FILLER_PREFIXES = ("please ", "can you ", "could you ", "请", "帮我", "麻烦", "现在", "能不能")
 HELP_WORDS = ("help", "what can you do", "commands", "帮助")
+TIME_WORDS = ("time", "what time is it", "现在几点", "几点了", "几点", "几点钟", "时间")
+WEATHER_WORDS = ("weather", "天气", "上海天气", "天气怎么样")
 CONFIRM_WORDS = ("confirm", "yes", "go ahead", "do it", "确认", "执行", "继续执行", "好的")
 CANCEL_WORDS = ("cancel", "no", "never mind", "stop that", "取消", "不用了", "算了")
 REPEAT_WORDS = ("repeat", "say again", "again", "再说一次", "重复一下", "再来一遍")
@@ -89,6 +92,8 @@ def apply_common_replacements(text: str) -> str:
 
 ACTION_PHRASES = {
     "help": ("help", "commands", "帮助", "你能做什么"),
+    "time": ("time", "what time is it", "现在几点", "时间"),
+    "weather": ("weather", "天气", "天气怎么样"),
     "doctor": ("doctor", "check environment", "环境检查", "检查环境"),
     "scan": ("scan frame", "scan device", "扫描眼镜", "扫描设备", "扫描 frame"),
     "pair_test": ("pair test", "test connection", "连接测试", "配对测试", "测试连接"),
@@ -220,6 +225,15 @@ def parse_intent(text: str, wake_word: Optional[str] = None, shortcuts=None) -> 
         return BridgeIntent("exit", raw=text)
     if any(word in lowered for word in HELP_WORDS):
         return BridgeIntent("help", raw=text)
+    if any(word in lowered for word in TIME_WORDS):
+        return BridgeIntent("time", raw=text)
+    if any(word in lowered for word in WEATHER_WORDS):
+        payload = None
+        if lowered.endswith("天气") and len(lowered) > 2:
+            payload = lowered[:-2].strip() or None
+        elif "weather in " in lowered:
+            payload = lowered.split("weather in ", 1)[1].strip() or None
+        return BridgeIntent("weather", payload=payload, raw=text)
     if any(word in lowered for word in CONFIRM_WORDS):
         return BridgeIntent("confirm", raw=text)
     if any(word in lowered for word in CANCEL_WORDS):
@@ -296,6 +310,10 @@ def describe_intent(intent: BridgeIntent, locale: str = 'en') -> str:
             return "执行代码审查"
         if intent.action == "pair_test":
             return "执行连接测试"
+        if intent.action == "time":
+            return "查看当前时间"
+        if intent.action == "weather":
+            return "查看天气"
         if intent.action == "doctor":
             return "执行环境检查"
         if intent.action == "scan":
@@ -328,6 +346,10 @@ def describe_intent(intent: BridgeIntent, locale: str = 'en') -> str:
         return "run a code review"
     if intent.action == "pair_test":
         return "run pair test"
+    if intent.action == "time":
+        return "show current time"
+    if intent.action == "weather":
+        return "show weather"
     if intent.action == "doctor":
         return "run doctor"
     if intent.action == "scan":
@@ -393,6 +415,11 @@ def build_follow_up_prompt(last_message: str, locale: str = 'en') -> str:
 
 
 def dry_run_message(intent: BridgeIntent, args, locale: str) -> str:
+    if intent.action == 'time':
+        return 'Would show current time' if locale == 'en' else '将查看当前时间'
+    if intent.action == 'weather':
+        location = (intent.payload or getattr(args, 'default_weather_location', 'Shanghai'))
+        return f'Would fetch weather for {location}' if locale == 'en' else f'将查询天气：{location}'
     if intent.action == 'doctor':
         return 'Would run doctor' if locale == 'en' else '将执行环境检查'
     if intent.action == 'scan':
@@ -580,6 +607,14 @@ async def execute_intent(args, intent: BridgeIntent) -> Tuple[str, bool]:
         return nothing_pending(locale, "cancel"), False
     if intent.action == "history":
         return summarize_history(Path(args.history_file).expanduser(), locale=locale), False
+
+    if intent.action == "time":
+        return args.compact_text(current_time_text(locale=locale, timezone_name=getattr(args, "time_zone", None))), False
+    if intent.action == "weather":
+        if args.dry_run:
+            return dry_run_message(intent, args, locale), False
+        location = intent.payload or getattr(args, "default_weather_location", "Shanghai")
+        return args.compact_text(fetch_weather(location, locale=locale)), False
 
     if intent.action == "doctor":
         if args.dry_run:

@@ -1135,6 +1135,8 @@ python frame_lab.py task-board -- pin-next
 
 这条链路是对你刚才问题的直接回应：
 
+- 说 `time` / `现在几点` -> 查看当前时间
+- 说 `weather` / `天气` -> 查看天气（默认地点可配置）
 - 说 `doctor` -> 跑环境检查
 - 说 `scan frame` -> 扫描眼镜
 - 说 `pair test` -> 做连接测试
@@ -1200,6 +1202,8 @@ python frame_lab.py voice-codex -- --name "Frame EF" --language zh --render-mode
 ```bash
 python examples/frame_mic_codex_bridge.py --demo --dry-run
 ```
+
+例如你可以直接说：`现在几点`、`上海天气`。
 
 高代价命令现在会先提示确认，例如你说 `run tests` 或 `ask codex ...` 后，需要再说 `confirm`。
 如果你配置了 `--wake-word codex`，那普通闲聊会被忽略，只有带唤醒词的命令才会触发。
