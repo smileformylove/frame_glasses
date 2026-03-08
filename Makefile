@@ -2,7 +2,7 @@ PYTHON ?= python3
 VENV_PYTHON := .venv/bin/python
 FRAME_LAB := $(VENV_PYTHON) frame_lab.py
 
-.PHONY: help bootstrap bootstrap-min doctor scan pair-test say meeting-demo vision-demo tap-vision-demo memory-demo tap-memory-demo voice-demo voice-codex-demo frame-mic-test frame-mic-live-demo agent-hud-serve agent-hud-demo
+.PHONY: help bootstrap bootstrap-min doctor scan pair-test say meeting-demo vision-demo tap-vision-demo memory-demo tap-memory-demo voice-demo voice-codex-demo frame-mic-test frame-mic-live-demo frame-mic-codex-demo agent-hud-serve agent-hud-demo
 
 help:
 	@echo "Available targets:"
@@ -19,6 +19,7 @@ help:
 	@echo "  tap-memory-demo     Tap Memory HUD dry-run flow"
 	@echo "  voice-demo          Voice Command HUD dry-run flow"
 	@echo "  voice-codex-demo    Voice Codex Bridge dry-run flow"
+	@echo "  frame-mic-codex-demo Frame Mic Codex Bridge dry-run flow"
 	@echo "  frame-mic-test      Dry-run Frame microphone test"
 	@echo "  frame-mic-live-demo Frame microphone live transcript dry-run demo"
 	@echo "  agent-hud-serve     Start Agent HUD in dry-run mode"
@@ -63,6 +64,9 @@ voice-demo:
 
 voice-codex-demo:
 	$(FRAME_LAB) voice-codex -- --demo --dry-run --demo-commands "help|doctor|git status|ask codex summarize this repo|exit"
+
+frame-mic-codex-demo:
+	$(FRAME_LAB) frame-mic-codex -- --demo --dry-run
 
 frame-mic-test:
 	$(FRAME_LAB) frame-mic -- --duration 5 --dry-run

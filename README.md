@@ -167,6 +167,7 @@ python frame_lab.py memory -- list
 python frame_lab.py tap-memory -- --demo
 python frame_lab.py voice -- --demo
 python frame_lab.py voice-codex -- --demo --dry-run
+python frame_lab.py frame-mic-codex -- --demo --dry-run
 python frame_lab.py doctor
 python frame_lab.py frame-mic -- --duration 5
 python frame_lab.py frame-mic-live -- --demo --dry-run
@@ -662,6 +663,7 @@ python examples/tap_memory_hud.py --name "Frame 4F" --analyzer openai --output-l
 python frame_lab.py tap-memory -- --demo
 python frame_lab.py voice -- --demo
 python frame_lab.py voice-codex -- --demo --dry-run
+python frame_lab.py frame-mic-codex -- --demo --dry-run
 python frame_lab.py doctor
 python frame_lab.py tap-memory -- --name "Frame 4F" --analyzer ocr --ocr-language chi_sim+eng --render-mode unicode
 ```
@@ -1080,7 +1082,40 @@ python frame_lab.py voice-codex -- --demo --dry-run
 python frame_lab.py voice-codex -- --name "Frame EF" --language zh --render-mode unicode
 ```
 
-## 20. 这套 starter 适合继续扩展什么
+## 20. Frame Mic Codex Bridge：直接用眼镜麦克风语音控制 Codex
+
+这是目前语音链路最完整的一版：
+
+- 输入源是 **眼镜自带麦克风**
+- 输出是 **Codex 和本地开发命令**
+- 不再依赖 Mac mini 本机麦克风
+
+### 20.1 先本地预览
+
+```bash
+python examples/frame_mic_codex_bridge.py --demo --dry-run
+```
+
+### 20.2 真机运行
+
+```bash
+python examples/frame_mic_codex_bridge.py --name "Frame EF" --language zh --render-mode unicode
+```
+
+如果你希望 `ask codex ...` 更自动：
+
+```bash
+python examples/frame_mic_codex_bridge.py --name "Frame EF" --language zh --render-mode unicode --codex-full-auto --codex-ephemeral
+```
+
+### 20.3 统一入口
+
+```bash
+python frame_lab.py frame-mic-codex -- --demo --dry-run
+python frame_lab.py frame-mic-codex -- --name "Frame EF" --language zh --render-mode unicode
+```
+
+## 21. 这套 starter 适合继续扩展什么
 
 ### 会议字幕
 
@@ -1099,7 +1134,7 @@ python frame_lab.py voice-codex -- --name "Frame EF" --language zh --render-mode
 - Mac mini 做 OCR / VLM 理解
 - 只回传一小段摘要到眼镜
 
-## 21. 常见问题
+## 22. 常见问题
 
 ### 连不上蓝牙
 
@@ -1185,7 +1220,7 @@ python frame_lab.py voice-codex -- --name "Frame EF" --language zh --render-mode
 - 先确保没有别的 Frame 应用占住设备
 - 重新运行脚本，让它自动执行 break/reset/break
 
-## 22. 推荐下一步
+## 23. 推荐下一步
 
 你可以继续沿这条路线做三个 MVP：
 
@@ -1193,7 +1228,7 @@ python frame_lab.py voice-codex -- --name "Frame EF" --language zh --render-mode
 2. `Meeting Translate HUD`：双语会议翻译
 3. `Meeting Speaker HUD`：带说话人标签的会议辅助
 
-## 23. 官方资料
+## 24. 官方资料
 
 - GitHub: <https://github.com/brilliantlabsAR>
 - Frame SDK: <https://docs.brilliant.xyz/frame/frame-sdk/>
