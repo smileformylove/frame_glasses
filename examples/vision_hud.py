@@ -114,6 +114,9 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument("--quality-index", type=int, default=4, help="Frame JPEG quality index between 0 and 4")
     parser.add_argument("--pan", type=int, default=0, help="Frame camera pan offset")
     parser.add_argument("--capture-timeout", type=float, default=20.0, help="Seconds to wait for a photo from Frame")
+    parser.add_argument("--warmup-captures", type=int, default=1, help="Number of initial captures to discard before the real capture")
+    parser.add_argument("--capture-retries", type=int, default=2, help="How many times to retry capture if image validation fails")
+    parser.add_argument("--stabilize-delay", type=float, default=0.2, help="Seconds to wait after starting the camera app before capturing")
     parser.add_argument("--demo-text", default="Frame OCR demo\nOpenAI Vision HUD", help="Text rendered into the generated demo image")
     parser.add_argument("--keep-image", action="store_true", help="Keep the generated demo image instead of deleting it later")
     return parser
@@ -175,6 +178,25 @@ def create_demo_image(output_path: Path, text: str) -> Path:
     return output_path
 
 
+def validate_captured_jpeg(image_bytes: bytes) -> None:
+    from PIL import Image
+
+    with Image.open(io.BytesIO(image_bytes)) as image:
+        image.load()
+        if image.width < 32 or image.height < 32:
+            raise RuntimeError(f"Captured image too small: {image.width}x{image.height}")
+
+
+async def capture_photo_bytes(frame: FrameMsg, photo_queue: asyncio.Queue, args) -> bytes:
+    capture_settings = TxCaptureSettings(
+        resolution=args.resolution,
+        quality_index=args.quality_index,
+        pan=args.pan,
+    )
+    await frame.send_message(CAPTURE_MSG_CODE, capture_settings.pack())
+    return await asyncio.wait_for(photo_queue.get(), timeout=args.capture_timeout)
+
+
 async def capture_from_frame(args, output_path: Path) -> Path:
     frame = FrameMsg()
     photo = RxPhoto(upright=True)
@@ -188,15 +210,25 @@ async def capture_from_frame(args, output_path: Path) -> Path:
         await frame.upload_stdlua_libs(["data", "camera"])
         await frame.upload_frame_app(str(frame_app_path), f"{frame_app_name}.lua")
         await frame.start_frame_app(frame_app_name, await_print=True)
-        capture_settings = TxCaptureSettings(
-            resolution=args.resolution,
-            quality_index=args.quality_index,
-            pan=args.pan,
-        )
-        await frame.send_message(CAPTURE_MSG_CODE, capture_settings.pack())
-        image_bytes = await asyncio.wait_for(queue.get(), timeout=args.capture_timeout)
-        output_path.write_bytes(image_bytes)
-        return output_path
+        await asyncio.sleep(args.stabilize_delay)
+
+        for warmup_index in range(args.warmup_captures):
+            print(f"[vision] warmup capture {warmup_index + 1}/{args.warmup_captures}")
+            _ = await capture_photo_bytes(frame, queue, args)
+
+        last_error = None
+        for attempt in range(1, args.capture_retries + 2):
+            try:
+                image_bytes = await capture_photo_bytes(frame, queue, args)
+                validate_captured_jpeg(image_bytes)
+                output_path.write_bytes(image_bytes)
+                return output_path
+            except Exception as exc:
+                last_error = exc
+                print(f"[vision] capture retry {attempt} failed: {exc}")
+                if attempt <= args.capture_retries:
+                    await asyncio.sleep(0.1)
+        raise last_error
     finally:
         if queue is not None:
             photo.detach(frame)

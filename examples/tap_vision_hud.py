@@ -10,9 +10,11 @@ from vision_hud import (
     CAPTURE_MSG_CODE,
     DEFAULT_VISION_PROMPT,
     build_analyzer,
+    capture_photo_bytes,
     connect_frame_msg,
     create_demo_image,
     timestamped_image_path,
+    validate_captured_jpeg,
 )
 
 PLAIN_TEXT_MSG_CODE = 0x21
@@ -38,6 +40,9 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument("--quality-index", type=int, default=4, help="Frame JPEG quality index between 0 and 4")
     parser.add_argument("--pan", type=int, default=0, help="Frame camera pan offset")
     parser.add_argument("--capture-timeout", type=float, default=20.0, help="Seconds to wait for a photo after a tap")
+    parser.add_argument("--warmup-captures", type=int, default=1, help="Number of initial captures to discard before the real capture")
+    parser.add_argument("--capture-retries", type=int, default=2, help="How many times to retry capture if image validation fails")
+    parser.add_argument("--stabilize-delay", type=float, default=0.2, help="Seconds to wait after starting the camera app before capturing")
     parser.add_argument("--output-dir", default="./captures", help="Directory for captured images")
     parser.add_argument("--filename-prefix", default="tap_vision", help="Prefix for saved captures")
     parser.add_argument("--tap-threshold", type=float, default=0.3, help="Tap grouping threshold in seconds")
@@ -98,15 +103,23 @@ async def send_status_text(frame: FrameMsg, text: str, args) -> None:
 
 async def capture_photo(frame: FrameMsg, photo_queue: asyncio.Queue, args, image_path: Path) -> Path:
     await frame.send_message(PLAIN_TEXT_MSG_CODE, b"capturing...")
-    capture_settings = TxCaptureSettings(
-        resolution=args.resolution,
-        quality_index=args.quality_index,
-        pan=args.pan,
-    )
-    await frame.send_message(CAPTURE_MSG_CODE, capture_settings.pack())
-    image_bytes = await asyncio.wait_for(photo_queue.get(), timeout=args.capture_timeout)
-    image_path.write_bytes(image_bytes)
-    return image_path
+    for warmup_index in range(args.warmup_captures):
+        print(f"[tap-vision] warmup capture {warmup_index + 1}/{args.warmup_captures}")
+        _ = await capture_photo_bytes(frame, photo_queue, args)
+
+    last_error = None
+    for attempt in range(1, args.capture_retries + 2):
+        try:
+            image_bytes = await capture_photo_bytes(frame, photo_queue, args)
+            validate_captured_jpeg(image_bytes)
+            image_path.write_bytes(image_bytes)
+            return image_path
+        except Exception as exc:
+            last_error = exc
+            print(f"[tap-vision] capture retry {attempt} failed: {exc}")
+            if attempt <= args.capture_retries:
+                await asyncio.sleep(0.1)
+    raise last_error
 
 
 async def analyze_and_report(image_path: Path, args) -> str:
@@ -151,6 +164,7 @@ async def run_live(args) -> None:
         tap_queue = await tap.attach(frame)
         photo_queue = await photo.attach(frame)
         await upload_tap_vision_runtime(frame)
+        await asyncio.sleep(args.stabilize_delay)
         await send_status_text(frame, "Tap side to capture. Double tap exits.", args)
 
         while True:

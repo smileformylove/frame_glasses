@@ -599,6 +599,8 @@ python examples/vision_hud.py --source image --image ./captures/example.jpg --an
 - `--question`：自定义视觉任务，例如“只提取清晰可见的英文单词”
 - `--resolution 720`：更高分辨率拍照，通常更利于 OCR
 - `--quality-index 4`：最高 JPEG 质量
+- `--warmup-captures 1`：先丢掉一张预热帧，减少首帧条纹/花屏
+- `--capture-retries 2`：如果 JPEG 校验失败就自动重拍
 - `--output-dir ./captures`：保存拍下来的图片
 - `--render-mode unicode`：如果结果是中文，建议打开
 

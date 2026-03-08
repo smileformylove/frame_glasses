@@ -138,6 +138,7 @@ async def run_live(args) -> None:
         tap_queue = await tap.attach(frame)
         photo_queue = await photo.attach(frame)
         await upload_tap_vision_runtime(frame)
+        await asyncio.sleep(args.stabilize_delay)
         await send_status_text(frame, "1 tap recall / 3 taps save / 2 taps exit", args)
 
         while True:
