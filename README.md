@@ -131,6 +131,22 @@ python examples/scan_frame.py --name-contains "Frame"
 
 ## 2.2 统一入口命令
 
+### Makefile 快捷目标
+
+如果你更习惯 `make`，仓库里也提供了一组高频快捷目标：
+
+```bash
+make help
+make doctor
+make pair-test
+make meeting-demo
+make vision-demo
+make voice-demo
+make agent-hud-serve
+```
+
+这些目标本质上都是对 `frame_lab.py` 的薄封装。
+
 如果你不想记很多脚本文件名，可以直接用统一入口：
 
 ```bash
