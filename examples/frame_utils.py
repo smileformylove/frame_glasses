@@ -17,32 +17,50 @@ UNICODE_TEXT_MSG_CODE = 0x20
 
 
 class FrameDisplay:
-    def __init__(self, name: Optional[str] = None, dry_run: bool = False):
+    def __init__(self, name: Optional[str] = None, dry_run: bool = False, verbose: bool = False):
         self.name = name
         self.dry_run = dry_run
+        self.verbose = verbose
         self.frame: Optional[FrameBle] = None
 
     async def connect(self) -> None:
         if self.dry_run:
+            if self.verbose:
+                print("[frame] dry-run connect skipped")
             return
 
+        if self.verbose:
+            label = self.name or "first available Frame"
+            print(f"[frame] connecting to {label} ...")
         self.frame = FrameBle()
-        await self.frame.connect(name=self.name)
+        address = await self.frame.connect(name=self.name)
+        if self.verbose:
+            print(f"[frame] connected to {address}")
+            print("[frame] sending break/reset/break ...")
         await self.frame.send_break_signal()
         await self.frame.send_reset_signal()
         await self.frame.send_break_signal()
+        if self.verbose:
+            print("[frame] Frame ready")
 
     async def disconnect(self) -> None:
         if self.dry_run or self.frame is None:
             return
 
         if self.frame.is_connected():
+            if self.verbose:
+                print("[frame] disconnecting ...")
             await self.frame.disconnect()
+            if self.verbose:
+                print("[frame] disconnected")
 
     async def show_text(self, text: str, x: int = 1, y: int = 1) -> None:
         if self.dry_run:
             print(f"[Frame dry-run] ({x},{y}) {text}")
             return
+
+        if self.verbose:
+            print(f"[frame] show_text ({x},{y}) {text}")
 
         if self.frame is None:
             raise RuntimeError("Frame is not connected")
@@ -60,9 +78,11 @@ class FrameUnicodeDisplay:
         font_size: int = 28,
         display_width: int = 600,
         max_rows: int = 2,
+        verbose: bool = False,
     ):
         self.name = name
         self.dry_run = dry_run
+        self.verbose = verbose
         self.font_family = resolve_unicode_font(font_family)
         self.font_size = font_size
         self.display_width = display_width
@@ -78,13 +98,22 @@ class FrameUnicodeDisplay:
                 "No usable Unicode font found. Pass --font-family with a macOS font path, for example /System/Library/Fonts/Hiragino Sans GB.ttc"
             )
 
+        if self.verbose:
+            label = self.name or "first available Frame"
+            print(f"[frame-unicode] connecting to {label} ...")
         self.frame = FrameBle()
-        await self.frame.connect(name=self.name)
+        address = await self.frame.connect(name=self.name)
+        if self.verbose:
+            print(f"[frame-unicode] connected to {address}")
         await self.frame.send_break_signal()
         await self.frame.send_reset_signal()
         await self.frame.send_break_signal()
+        if self.verbose:
+            print("[frame-unicode] uploading unicode runtime ...")
         await self._upload_unicode_runtime()
         await self.frame.send_lua("require('text_sprite_block_frame_app')", await_print=True)
+        if self.verbose:
+            print("[frame-unicode] unicode runtime ready")
 
     async def disconnect(self) -> None:
         if self.dry_run or self.frame is None:
@@ -95,7 +124,11 @@ class FrameUnicodeDisplay:
                 await self.frame.send_break_signal()
             except Exception:
                 pass
+            if self.verbose:
+                print("[frame-unicode] disconnecting ...")
             await self.frame.disconnect()
+            if self.verbose:
+                print("[frame-unicode] disconnected")
 
     async def show_text(self, text: str, x: int = 1, y: int = 1) -> None:
         rendered = wrap_subtitle_text(text, width=self.display_width, font_size=self.font_size, max_lines=self.max_rows)
@@ -103,6 +136,9 @@ class FrameUnicodeDisplay:
         if self.dry_run:
             print(f"[Frame unicode dry-run] ({x},{y}) {rendered}")
             return
+
+        if self.verbose:
+            print(f"[frame-unicode] show_text ({x},{y}) {rendered}")
 
         if self.frame is None:
             raise RuntimeError("Frame is not connected")

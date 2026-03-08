@@ -16,11 +16,14 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument("--x", type=int, default=1, help="Display x coordinate")
     parser.add_argument("--y", type=int, default=1, help="Display y coordinate")
     parser.add_argument("--dry-run", action="store_true", help="Print which device would be used without connecting")
+    parser.add_argument("--verbose", action="store_true", help="Print BLE scan and connect progress")
     return parser
 
 
-async def find_best_frame(timeout: float, name_contains: Optional[str]) -> Optional[dict]:
+async def find_best_frame(timeout: float, name_contains: Optional[str], verbose: bool = False) -> Optional[dict]:
     service_uuid = FrameBle._SERVICE_UUID
+    if verbose:
+        print(f"[pair-test] scanning for Frame devices for {timeout:.1f}s ...")
     discovered = await BleakScanner.discover(timeout=timeout, return_adv=True, service_uuids=[service_uuid])
     needle = name_contains.lower() if name_contains else None
     matches = []
@@ -47,15 +50,25 @@ async def find_best_frame(timeout: float, name_contains: Optional[str]) -> Optio
     return matches[0]
 
 
-async def send_text(name: str, text: str, x: int, y: int) -> None:
+async def send_text(name: str, text: str, x: int, y: int, verbose: bool = False) -> None:
     frame = FrameBle()
-    await frame.connect(name=name)
+    if verbose:
+        print(f"[pair-test] connecting to {name} ...")
+    address = await frame.connect(name=name)
+    if verbose:
+        print(f"[pair-test] connected to {address}")
     try:
+        if verbose:
+            print("[pair-test] sending break/reset/break ...")
         await frame.send_break_signal()
         await frame.send_reset_signal()
+        if verbose:
+            print("[pair-test] sending break/reset/break ...")
         await frame.send_break_signal()
         command = f"frame.display.text('{lua_escape(text)}',{x},{y});frame.display.show();print(0)"
         await frame.send_lua(command, await_print=True)
+        if verbose:
+            print("[pair-test] text sent successfully")
     finally:
         if frame.is_connected():
             await frame.disconnect()
@@ -63,7 +76,7 @@ async def send_text(name: str, text: str, x: int, y: int) -> None:
 
 async def async_main() -> None:
     args = build_parser().parse_args()
-    match = await find_best_frame(args.timeout, args.name_contains)
+    match = await find_best_frame(args.timeout, args.name_contains, args.verbose)
     if not match:
         print("No matching Frame found.")
         print("Tips:")
@@ -77,7 +90,7 @@ async def async_main() -> None:
         print(f"Would display: {args.text}")
         return
 
-    await send_text(match["name"], args.text, args.x, args.y)
+    await send_text(match["name"], args.text, args.x, args.y, args.verbose)
     print("Test message sent successfully.")
 
 

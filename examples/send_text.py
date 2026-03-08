@@ -5,8 +5,8 @@ from typing import Optional
 from frame_utils import FrameDisplay
 
 
-async def show_text(name: Optional[str], text: str, x: int, y: int, dry_run: bool) -> None:
-    display = FrameDisplay(name=name, dry_run=dry_run)
+async def show_text(name: Optional[str], text: str, x: int, y: int, dry_run: bool, verbose: bool) -> None:
+    display = FrameDisplay(name=name, dry_run=dry_run, verbose=verbose)
     await display.connect()
     try:
         await display.show_text(text, x=x, y=y)
@@ -21,12 +21,13 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument("--x", type=int, default=1, help="Display x coordinate")
     parser.add_argument("--y", type=int, default=1, help="Display y coordinate")
     parser.add_argument("--dry-run", action="store_true", help="Print locally instead of connecting to Frame")
+    parser.add_argument("--verbose", action="store_true", help="Print BLE connection progress and actions")
     return parser
 
 
 def main() -> None:
     args = build_parser().parse_args()
-    asyncio.run(show_text(args.name, args.text, args.x, args.y, args.dry_run))
+    asyncio.run(show_text(args.name, args.text, args.x, args.y, args.dry_run, args.verbose))
 
 
 if __name__ == "__main__":

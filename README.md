@@ -137,6 +137,13 @@ python examples/scan_frame.py --name-contains "Frame"
 
 ## 2.2 统一入口命令
 
+如果你机器上没有 `python` 只有 `python3`，最稳的启动方式是：
+
+```bash
+./scripts/run_frame_lab.sh doctor
+./scripts/run_frame_lab.sh probe -- --name "Frame EF" --send-text "probe"
+```
+
 ### Makefile 快捷目标
 
 如果你更习惯 `make`，仓库里也提供了一组高频快捷目标：
@@ -169,6 +176,7 @@ python frame_lab.py voice -- --demo
 python frame_lab.py voice-codex -- --demo --dry-run
 python frame_lab.py frame-mic-codex -- --demo --dry-run
 python frame_lab.py doctor
+python frame_lab.py probe -- --name "Frame EF" --send-text "probe"
 python frame_lab.py frame-mic -- --duration 5
 python frame_lab.py frame-mic-live -- --demo --dry-run
 python frame_lab.py agent-hud -- serve --dry-run
@@ -185,6 +193,20 @@ python frame_lab.py voice-codex -- --demo --dry-run
 - 如果你想更清楚地区分 launcher 参数和脚本参数，建议加一个 `--`
 
 ## 3. 第一次连接测试
+
+如果你遇到“命令没反应”，先跑这个逐步探针：
+
+```bash
+python3 frame_lab.py probe -- --name "Frame EF" --send-text "probe"
+```
+
+它会明确告诉你：
+
+- 系统蓝牙里是否看得到 `Frame`
+- `Bleak` 有没有扫到它
+- 是否真正连上了 BLE service
+- `break/reset/break` 是否成功
+- `send_lua` 是否真正发到了眼镜
 
 如果你想先检查本机环境是否适合开发：
 

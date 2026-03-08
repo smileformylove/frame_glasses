@@ -23,6 +23,7 @@ COMMANDS = {
     "task-board": "examples/task_board_hud.py",
     "voice-codex": "examples/voice_codex_bridge.py",
     "frame-mic-codex": "examples/frame_mic_codex_bridge.py",
+    "probe": "examples/frame_connection_probe.py",
     "frame-mic": "examples/frame_mic_test.py",
     "frame-mic-live": "examples/frame_mic_live_hud.py",
 }
@@ -46,6 +47,7 @@ DESCRIPTIONS = {
     "task-board": "Manage local tasks and pin the current focus to Agent HUD",
     "voice-codex": "Use voice commands to trigger Codex and local developer workflows",
     "frame-mic-codex": "Use the Frame microphone to trigger Codex and local workflows",
+    "probe": "Run a step-by-step real-device connectivity probe",
     "frame-mic": "Record a short WAV clip from the Frame microphone",
     "frame-mic-live": "Stream and transcribe audio from the Frame microphone",
 }
