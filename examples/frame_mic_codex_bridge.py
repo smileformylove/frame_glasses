@@ -15,6 +15,7 @@ from voice_context import DEFAULT_CONTEXT_PATH, load_last_message, save_last_mes
 from voice_task_state import DEFAULT_TASK_STATE_PATH
 from voice_history import DEFAULT_HISTORY_PATH, append_history
 from voice_shortcuts import DEFAULT_SHORTCUTS_PATH, load_shortcuts
+from weather_profile import DEFAULT_WEATHER_PROFILE_PATH, load_weather_profile
 from voice_codex_core import (
     DEFAULT_COMMANDS,
     canceled_message,
@@ -64,7 +65,9 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument("--compute-type", default="int8", help="Whisper compute type")
     parser.add_argument("--beam-size", type=int, default=1, help="Whisper beam size")
     parser.add_argument("--test-command", default="pytest -q", help="Shell command used for the 'run tests' action")
+    parser.add_argument("--weather-profile", default=str(DEFAULT_WEATHER_PROFILE_PATH), help="Path to persisted weather preferences JSON")
     parser.add_argument("--codex-bin", default="codex", help="Path to the Codex CLI executable")
+    parser.add_argument("--default-weather-location", default=None, help="Default location used for weather queries without an explicit place")
     parser.add_argument("--codex-sandbox", default="workspace-write", help="Sandbox mode used for codex exec")
     parser.add_argument("--codex-full-auto", action="store_true", help="Pass --full-auto to codex exec")
     parser.add_argument("--codex-ephemeral", action="store_true", help="Pass --ephemeral to codex exec")
@@ -346,6 +349,9 @@ async def run_live_once(args) -> None:
 
 async def async_main() -> None:
     args = build_parser().parse_args()
+    profile = load_weather_profile(Path(args.weather_profile).expanduser())
+    if not args.default_weather_location and profile.get("default_weather_location"):
+        args.default_weather_location = profile.get("default_weather_location")
     if args.demo:
         await run_demo(args)
         return

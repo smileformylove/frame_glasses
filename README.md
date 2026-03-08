@@ -1209,6 +1209,13 @@ python examples/frame_mic_codex_bridge.py --demo --dry-run
 
 例如你可以直接说：`现在几点`、`上海天气`。
 
+如果你想把天气默认地点固定下来：
+
+```bash
+python examples/weather_profile.py set-default --location "Shanghai"
+python frame_lab.py weather-profile -- show
+```
+
 高代价命令现在会先提示确认，例如你说 `run tests` 或 `ask codex ...` 后，需要再说 `confirm`。
 如果你配置了 `--wake-word codex`，那普通闲聊会被忽略，只有带唤醒词的命令才会触发。
 另外，当你带唤醒词说一整句自由文本时，系统会默认把它当成 `ask codex ...`。
