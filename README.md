@@ -177,6 +177,7 @@ python frame_lab.py voice-codex -- --demo --dry-run
 python frame_lab.py frame-mic-codex -- --demo --dry-run
 python frame_lab.py doctor
 python frame_lab.py probe -- --name "Frame EF" --send-text "probe"
+python frame_lab.py visual-probe -- --name "Frame EF" --duration 15
 python frame_lab.py frame-mic -- --duration 5
 python frame_lab.py frame-mic-live -- --demo --dry-run
 python frame_lab.py agent-hud -- serve --dry-run
@@ -219,6 +220,20 @@ python3 frame_lab.py probe -- --name "Frame EF" --send-text "probe"
 - `probe`
 - 真实发字
 - 眼镜麦克风录音测试
+
+如果 `probe` 正常，但眼镜上还是只显示 `paired`，再跑这个更强的可视化探针：
+
+```bash
+python3 frame_lab.py visual-probe -- --name "Frame EF" --duration 15 --verbose
+```
+
+正常情况下，眼镜会持续显示：
+
+- `FRAME CONNECTED`
+- `VISUAL PROBE`
+- `COUNT 0 / 1 / 2 ...`
+
+如果这一步也没有肉眼可见变化，那就不是“转写没工作”，而是**Frame 端显示接管没有真正发生**。
 
 如果你想先检查本机环境是否适合开发：
 
