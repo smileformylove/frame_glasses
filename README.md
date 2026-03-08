@@ -278,6 +278,12 @@ python examples/frame_mic_test.py --name "Frame 4F" --duration 5
 
 ```bash
 python examples/frame_audio_probe.py --name "Frame EF" --duration 4 --transcribe
+
+如果你怀疑录音前段有爆点，可以显式调大前导裁剪：
+
+```bash
+python examples/frame_audio_probe.py --name "Frame EF" --duration 4 --transcribe --trim-leading 0.3
+```
 ```
 
 它会输出：

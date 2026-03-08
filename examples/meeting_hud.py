@@ -1,6 +1,7 @@
 import argparse
 import asyncio
 import os
+import warnings
 import tempfile
 import wave
 from datetime import datetime
@@ -37,14 +38,22 @@ class FasterWhisperTranscriber:
         self.model = WhisperModel(model_name, device=device, compute_type=compute_type)
 
     def transcribe(self, audio_chunk) -> str:
-        segments, _ = self.model.transcribe(
-            audio_chunk,
-            language=self.language,
-            task=self.task,
-            beam_size=self.beam_size,
-            vad_filter=True,
-            condition_on_previous_text=False,
-        )
+        import numpy as np
+
+        audio = audio_chunk
+        if isinstance(audio_chunk, np.ndarray):
+            audio = np.nan_to_num(audio_chunk.astype(np.float32, copy=False), nan=0.0, posinf=0.0, neginf=0.0)
+
+        with warnings.catch_warnings():
+            warnings.simplefilter("ignore", RuntimeWarning)
+            segments, _ = self.model.transcribe(
+                audio,
+                language=self.language,
+                task=self.task,
+                beam_size=self.beam_size,
+                vad_filter=True,
+                condition_on_previous_text=False,
+            )
         text = " ".join(segment.text.strip() for segment in segments).strip()
         return " ".join(text.split())
 

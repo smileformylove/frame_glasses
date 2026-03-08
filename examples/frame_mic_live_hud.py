@@ -3,9 +3,9 @@ import asyncio
 from pathlib import Path
 from typing import Optional, Sequence
 
-import numpy as np
 from frame_msg import FrameMsg, RxAudio
 
+from frame_audio_utils import compute_rms, pcm_bytes_to_float32, preprocess_for_whisper
 from frame_utils import build_unicode_payloads, compact_text, resolve_unicode_font
 from meeting_hud import FasterWhisperTranscriber, build_display_text, build_translator, maybe_translate
 from vision_hud import connect_frame_msg
@@ -39,6 +39,7 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument("--overlap-duration", type=float, default=0.5, help="Seconds of overlap between windows")
     parser.add_argument("--sample-rate", type=int, default=8000, help="Frame audio sample rate")
     parser.add_argument("--min-rms", type=float, default=0.01, help="Silence threshold for normalized PCM windows")
+    parser.add_argument("--trim-leading", type=float, default=0.25, help="Seconds trimmed from the start of each transcription window before Whisper preprocessing")
     parser.add_argument("--model", default="base", help="faster-whisper model name")
     parser.add_argument("--language", default=None, help="Optional spoken language code such as en or zh")
     parser.add_argument("--device", default="auto", help="Whisper device, usually auto or cpu on macOS")
@@ -128,17 +129,6 @@ async def send_status_text(frame: FrameMsg, text: str, args, unicode_mode: bool)
     await frame.send_message(PLAIN_TEXT_MSG_CODE, compact_text(text, args.limit).encode("utf-8"))
 
 
-def pcm_to_float32(pcm_bytes: bytes) -> np.ndarray:
-    samples = np.frombuffer(pcm_bytes, dtype="<i2").astype(np.float32)
-    return samples / 32768.0
-
-
-def compute_rms(samples: np.ndarray) -> float:
-    if samples.size == 0:
-        return 0.0
-    return float(np.sqrt(np.mean(np.square(samples))))
-
-
 def append_log(log_file: Optional[Path], line: str) -> None:
     if log_file is None:
         return
@@ -196,13 +186,14 @@ async def run_live_once(args) -> None:
                 window = bytes(pcm_buffer[:window_bytes])
                 del pcm_buffer[:step_bytes]
 
-                samples = pcm_to_float32(window)
+                samples = pcm_bytes_to_float32(window)
                 rms = compute_rms(samples)
                 print(f"[frame-mic] rms={rms:.4f}")
                 if rms < args.min_rms:
                     continue
 
-                text = await asyncio.to_thread(transcriber.transcribe, samples)
+                whisper_audio = preprocess_for_whisper(samples, args.sample_rate, trim_leading_seconds=args.trim_leading)
+                text = await asyncio.to_thread(transcriber.transcribe, whisper_audio)
                 if not text:
                     continue
 

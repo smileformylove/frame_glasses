@@ -4,11 +4,10 @@ from pathlib import Path
 
 from frame_msg import FrameMsg, RxAudio
 
+from frame_audio_utils import compute_rms, pcm_bytes_to_float32, preprocess_for_whisper
 from frame_mic_live_hud import (
     append_log,
     choose_demo_lines,
-    compute_rms,
-    pcm_to_float32,
     send_status_text,
     upload_runtime,
 )
@@ -38,6 +37,7 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument("--overlap-duration", type=float, default=0.5, help="Seconds of overlap between windows")
     parser.add_argument("--sample-rate", type=int, default=8000, help="Frame audio sample rate")
     parser.add_argument("--min-rms", type=float, default=0.008, help="Silence threshold for normalized PCM windows")
+    parser.add_argument("--trim-leading", type=float, default=0.25, help="Seconds trimmed from the start of each transcription window before Whisper preprocessing")
     parser.add_argument("--model", default="base", help="faster-whisper model name")
     parser.add_argument("--language", default=None, help="Optional spoken language code such as en or zh")
     parser.add_argument("--device", default="auto", help="Whisper device, usually auto or cpu on macOS")
@@ -136,13 +136,14 @@ async def run_live_once(args) -> None:
                 window = bytes(pcm_buffer[:window_bytes])
                 del pcm_buffer[:step_bytes]
 
-                samples = pcm_to_float32(window)
+                samples = pcm_bytes_to_float32(window)
                 rms = compute_rms(samples)
                 print(f"[frame-mic-codex] rms={rms:.4f}")
                 if rms < args.min_rms:
                     continue
 
-                heard = await asyncio.to_thread(transcriber.transcribe, samples)
+                whisper_audio = preprocess_for_whisper(samples, args.sample_rate, trim_leading_seconds=args.trim_leading)
+                heard = await asyncio.to_thread(transcriber.transcribe, whisper_audio)
                 if not heard or heard == last_heard:
                     continue
                 last_heard = heard
