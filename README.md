@@ -796,6 +796,12 @@ python examples/agent_hud.py send --text "Tests passed" --level ok
 python examples/agent_hud.py serve --name "Frame 4F" --render-mode unicode
 ```
 
+如果你就是想快速做真机实时联调，不想手写循环：
+
+```bash
+./scripts/realtime_agent_hud_test.sh --count 10 --interval 1
+```
+
 发通知：
 
 ```bash
