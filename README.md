@@ -837,6 +837,20 @@ python examples/agent_hud.py watch --interval 5 -- -- python3 -c "print('build o
 python examples/agent_hud.py watch --pin-latest --clear-pin-on-exit --interval 10 --name build -- -- python3 -c "print('build ok')"
 ```
 
+### 16.3.2 直接跟踪日志文件
+
+如果你已经有一个本地日志文件在持续追加：
+
+```bash
+python examples/agent_hud.py tail /tmp/app.log --prefix LOG --level warn
+```
+
+从文件开头开始读：
+
+```bash
+python examples/agent_hud.py tail /tmp/app.log --from-start --max-lines 20
+```
+
 ### 16.4 统一入口
 
 ```bash
@@ -846,6 +860,7 @@ python frame_lab.py agent-hud -- pin --text "Ship the demo"
 python frame_lab.py agent-hud -- clear
 python frame_lab.py agent-hud -- health
 python frame_lab.py agent-hud -- watch -- -- python3 -c "print('build ok')"
+python frame_lab.py agent-hud -- tail /tmp/app.log --prefix LOG
 ```
 
 ### 16.4.1 直接包一层命令

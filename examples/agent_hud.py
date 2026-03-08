@@ -9,6 +9,7 @@ import urllib.error
 import urllib.request
 from collections import deque
 from dataclasses import asdict, dataclass
+from pathlib import Path
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from typing import Deque, Optional
 
@@ -319,6 +320,16 @@ def build_parser() -> argparse.ArgumentParser:
     watch.add_argument("--cwd", default=None, help="Optional working directory for the child command")
     watch.add_argument("watch_command", nargs=argparse.REMAINDER, help="Command to run, place it after --")
 
+    tail = subparsers.add_parser("tail", help="Follow a file and send newly appended lines as notifications")
+    tail.add_argument("path", help="File path to follow")
+    tail.add_argument("--url", default=f"{DEFAULT_URL}/notify", help="Notification endpoint URL")
+    tail.add_argument("--prefix", default="TAIL", help="Notification prefix")
+    tail.add_argument("--level", default="info", help="Notification level for tailed lines")
+    tail.add_argument("--source", default="tail", help="Notification source label")
+    tail.add_argument("--poll-interval", type=float, default=0.5, help="Seconds between file checks")
+    tail.add_argument("--from-start", action="store_true", help="Read the file from the start instead of only new lines")
+    tail.add_argument("--max-lines", type=int, default=0, help="Stop after sending N lines, 0 means unlimited")
+
     return parser
 
 
@@ -428,6 +439,33 @@ async def run_watch(args) -> None:
         clear_notification(clear_url(args.url))
 
 
+async def run_tail(args) -> None:
+    path = Path(args.path).expanduser()
+    while not path.exists():
+        print(f"[agent-hud] waiting for file: {path}")
+        await asyncio.sleep(args.poll_interval)
+
+    sent = 0
+    with path.open("r", encoding="utf-8", errors="replace") as handle:
+        if not args.from_start:
+            handle.seek(0, 2)
+
+        while True:
+            line = handle.readline()
+            if not line:
+                await asyncio.sleep(args.poll_interval)
+                continue
+
+            text = line.strip()
+            if not text:
+                continue
+
+            send_notification(args.url, text, args.prefix, args.level, args.source)
+            sent += 1
+            if args.max_lines and sent >= args.max_lines:
+                break
+
+
 async def async_main() -> None:
     args = build_parser().parse_args()
     if args.command == "send":
@@ -456,6 +494,9 @@ async def async_main() -> None:
         return
     if args.command == "watch":
         await run_watch(args)
+        return
+    if args.command == "tail":
+        await run_tail(args)
         return
     if args.command == "serve":
         display = NotificationDisplay(
