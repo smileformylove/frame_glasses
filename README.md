@@ -823,6 +823,32 @@ python frame_lab.py notify-run -- -- python3 -c "print('tests passed')"
 - `GET http://127.0.0.1:8765/health`
 - `GET http://127.0.0.1:8765/recent`
 
+### 16.6 开机常驻（macOS LaunchAgent）
+
+如果你想让 `Agent HUD` 在 Mac mini 上开机常驻：
+
+```bash
+./scripts/install_agent_hud_launchagent.sh install --name "Frame 4F"
+```
+
+查看状态：
+
+```bash
+./scripts/install_agent_hud_launchagent.sh status
+```
+
+卸载：
+
+```bash
+./scripts/install_agent_hud_launchagent.sh uninstall
+```
+
+如果你只是先测试服务链路，不连眼镜：
+
+```bash
+./scripts/install_agent_hud_launchagent.sh install --dry-run
+```
+
 ## 17. 这套 starter 适合继续扩展什么
 
 ### 会议字幕
