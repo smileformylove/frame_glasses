@@ -5,7 +5,7 @@ import re
 import sys
 import urllib.error
 import urllib.request
-from typing import Iterable, Optional
+from typing import Optional
 
 
 KEYWORDS = (
@@ -30,6 +30,8 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument("--name", default=None, help="Optional human-readable name for the command")
     parser.add_argument("--notify-every", type=int, default=5, help="Also notify every Nth output line")
     parser.add_argument("--max-text", type=int, default=140, help="Maximum notification text length")
+    parser.add_argument("--pin-running", action="store_true", help="Pin the running task on Agent HUD until the command exits")
+    parser.add_argument("--clear-pin-on-exit", action="store_true", help="Clear the pinned task when the command exits")
     parser.add_argument("command", nargs=argparse.REMAINDER, help="Command to run, place it after --")
     return parser
 
@@ -44,6 +46,23 @@ def compact_text(text: str, limit: int) -> str:
 def should_notify(line: str, line_count: int, every: int) -> bool:
     lowered = line.lower()
     return any(keyword in lowered for keyword in KEYWORDS) or line_count == 1 or (every > 0 and line_count % every == 0)
+
+
+def pin_url(url: str) -> str:
+    return url[:-7] + "/pin" if url.endswith("/notify") else url.rstrip("/") + "/pin"
+
+
+def clear_url(url: str) -> str:
+    return url[:-7] + "/clear" if url.endswith("/notify") else url.rstrip("/") + "/clear"
+
+
+def clear_notification(url: str) -> None:
+    request = urllib.request.Request(url, data=b"{}", headers={"Content-Type": "application/json; charset=utf-8"}, method="POST")
+    try:
+        with urllib.request.urlopen(request, timeout=5):
+            return
+    except urllib.error.URLError as exc:
+        print(f"[notify-run] failed to clear pin: {exc}", file=sys.stderr)
 
 
 def send_notification(url: str, text: str, prefix: str, level: str, source: str) -> None:
@@ -91,7 +110,10 @@ async def run_command(args) -> int:
         raise ValueError("A command is required after --")
 
     command_name = args.name or " ".join(command)
-    send_notification(args.url, compact_text(f"Starting {command_name}", args.max_text), args.prefix, "info", args.source)
+    start_message = compact_text(f"Starting {command_name}", args.max_text)
+    send_notification(args.url, start_message, args.prefix, "info", args.source)
+    if args.pin_running:
+        send_notification(pin_url(args.url), compact_text(f"Running {command_name}", args.max_text), args.prefix, "info", args.source)
 
     last_sent: Optional[str] = None
 
@@ -123,6 +145,9 @@ async def run_command(args) -> int:
         send_notification(args.url, compact_text(f"Finished {command_name}", args.max_text), args.prefix, "ok", args.source)
     else:
         send_notification(args.url, compact_text(f"Failed {command_name} (exit {return_code})", args.max_text), args.prefix, "error", args.source)
+
+    if args.clear_pin_on_exit:
+        clear_notification(clear_url(args.url))
     return return_code
 
 

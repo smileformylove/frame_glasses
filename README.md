@@ -824,10 +824,17 @@ python examples/notify_run.py -- -- python3 -c "print('tests passed')"
 python examples/notify_run.py --name "pytest" -- -- pytest -q
 ```
 
+如果你想把当前任务常驻 pin 在眼镜上：
+
+```bash
+python examples/notify_run.py --pin-running --clear-pin-on-exit --name "pytest" -- -- pytest -q
+```
+
 结合统一入口：
 
 ```bash
 python frame_lab.py notify-run -- -- python3 -c "print('tests passed')"
+python frame_lab.py notify-run -- --pin-running --clear-pin-on-exit --name "pytest" -- pytest -q
 ```
 
 ### 16.5 健康检查
