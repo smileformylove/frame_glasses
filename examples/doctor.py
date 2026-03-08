@@ -23,6 +23,7 @@ PYTHON_PACKAGES = {
     "faster_whisper": "faster-whisper",
     "openai": "openai",
     "pytesseract": "pytesseract",
+    "psutil": "psutil",
 }
 
 SYSTEM_TOOLS = {
@@ -75,7 +76,7 @@ def check_packages(reporter: Reporter, strict: bool) -> None:
         if found:
             reporter.ok(package_name, "installed")
         else:
-            if package_name in ("sounddevice", "faster-whisper", "openai", "pytesseract"):
+            if package_name in ("sounddevice", "faster-whisper", "openai", "pytesseract", "psutil"):
                 (reporter.fail if strict else reporter.warn)(package_name, "not installed")
             else:
                 reporter.fail(package_name, "not installed")
