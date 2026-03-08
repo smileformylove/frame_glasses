@@ -165,6 +165,7 @@ python frame_lab.py frame-mic -- --duration 5
 python frame_lab.py frame-mic-live -- --demo --dry-run
 python frame_lab.py agent-hud -- serve --dry-run
 python frame_lab.py notify-run -- -- python3 -c "print('tests passed')"
+python frame_lab.py showcase
 ```
 
 说明：
@@ -851,6 +852,7 @@ python examples/notify_run.py --pin-running --clear-pin-on-exit --name "pytest" 
 
 ```bash
 python frame_lab.py notify-run -- -- python3 -c "print('tests passed')"
+python frame_lab.py showcase
 python frame_lab.py notify-run -- --pin-running --clear-pin-on-exit --name "pytest" -- pytest -q
 ```
 
@@ -896,7 +898,33 @@ python examples/agent_hud.py pinned
 ./scripts/install_agent_hud_launchagent.sh install --dry-run
 ```
 
-## 17. 这套 starter 适合继续扩展什么
+## 17. Showcase：一条命令串跑核心 demo
+
+如果你想快速演示整个仓库，而不是一个个脚本去敲：
+
+```bash
+python examples/showcase.py
+```
+
+只看某几个 section：
+
+```bash
+python examples/showcase.py --sections meeting,vision,voice
+```
+
+列出可用 section：
+
+```bash
+python examples/showcase.py --list
+```
+
+统一入口：
+
+```bash
+python frame_lab.py showcase
+```
+
+## 18. 这套 starter 适合继续扩展什么
 
 ### 会议字幕
 
@@ -915,7 +943,7 @@ python examples/agent_hud.py pinned
 - Mac mini 做 OCR / VLM 理解
 - 只回传一小段摘要到眼镜
 
-## 18. 常见问题
+## 19. 常见问题
 
 ### 连不上蓝牙
 
@@ -1001,7 +1029,7 @@ python examples/agent_hud.py pinned
 - 先确保没有别的 Frame 应用占住设备
 - 重新运行脚本，让它自动执行 break/reset/break
 
-## 19. 推荐下一步
+## 20. 推荐下一步
 
 你可以继续沿这条路线做三个 MVP：
 
@@ -1009,7 +1037,7 @@ python examples/agent_hud.py pinned
 2. `Meeting Translate HUD`：双语会议翻译
 3. `Meeting Speaker HUD`：带说话人标签的会议辅助
 
-## 20. 官方资料
+## 21. 官方资料
 
 - GitHub: <https://github.com/brilliantlabsAR>
 - Frame SDK: <https://docs.brilliant.xyz/frame/frame-sdk/>
