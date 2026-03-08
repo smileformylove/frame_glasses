@@ -1204,6 +1204,7 @@ python examples/frame_mic_codex_bridge.py --demo --dry-run
 高代价命令现在会先提示确认，例如你说 `run tests` 或 `ask codex ...` 后，需要再说 `confirm`。
 如果你配置了 `--wake-word codex`，那普通闲聊会被忽略，只有带唤醒词的命令才会触发。
 另外，当你带唤醒词说一整句自由文本时，系统会默认把它当成 `ask codex ...`。
+现在也支持常见中文谐音误识别唤醒词，例如 `靠双手`、`靠雙手`、`考德斯`。
 在这之后，你还可以继续说 `为什么失败` 或 `详细一点`，系统会基于上一条结果继续追问。
 而且最近一条结果现在会持久化到本地，下次重启桥接后也还能继续追问。默认保存在 `profiles/voice_context.json`。最近几条命令历史默认保存在 `profiles/voice_history.json`。
 

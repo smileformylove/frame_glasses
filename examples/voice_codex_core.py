@@ -47,6 +47,17 @@ CODE_REVIEW_WORDS = ("code review", "review code", "review repo", "代码审查"
 CODEX_PREFIXES = ("ask codex ", "codex ", "让 codex ", "请 codex ", "让 codex 帮我", "请 codex 帮我")
 
 
+WAKE_WORD_ALIASES = {
+    'codex': ('codex', 'code x', 'codx', 'codec', '靠双手', '靠雙手', '考德斯', '考克斯', '科德克斯', '口袋克斯'),
+}
+
+
+def wake_word_candidates(wake_word: str):
+    normalized = normalize_command_text(wake_word)
+    aliases = WAKE_WORD_ALIASES.get(normalized, ())
+    return tuple(dict.fromkeys([normalized, *aliases]))
+
+
 
 COMMON_REPLACEMENTS = {
     '状太': '状态',
@@ -128,11 +139,13 @@ def strip_wake_word(text: str, wake_word: Optional[str]) -> Optional[str]:
     normalized = normalize_command_text(text)
     if not wake_word:
         return normalized
-    wake = normalize_command_text(wake_word)
-    if normalized == wake:
-        return ""
-    if normalized.startswith(wake + " "):
-        return normalized[len(wake):].strip()
+
+    for candidate in wake_word_candidates(wake_word):
+        alias = normalize_command_text(candidate)
+        if normalized == alias:
+            return ""
+        if normalized.startswith(alias + " "):
+            return normalized[len(alias):].strip()
     return None
 
 

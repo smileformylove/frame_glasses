@@ -96,6 +96,8 @@ def apply_audio_profile(args) -> None:
         args.language = profile['language']
     if profile.get('adaptive_rms') is not None:
         args.adaptive_rms = bool(profile.get('adaptive_rms')) or args.adaptive_rms
+    else:
+        args.adaptive_rms = True
     if profile.get('adaptive_alpha') is not None:
         args.adaptive_alpha = float(profile.get('adaptive_alpha'))
     if profile.get('adaptive_multiplier') is not None:
