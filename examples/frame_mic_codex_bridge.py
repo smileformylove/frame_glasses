@@ -1,27 +1,23 @@
 import argparse
 import asyncio
 from pathlib import Path
-from typing import Optional, Sequence
 
 from frame_msg import FrameMsg, RxAudio
 
 from frame_mic_live_hud import (
     append_log,
     choose_demo_lines,
-    pcm_to_float32,
     compute_rms,
+    pcm_to_float32,
     send_status_text,
     upload_runtime,
 )
-from voice_codex_bridge import (
-    execute_intent,
-    parse_intent,
-)
 from meeting_hud import FasterWhisperTranscriber
 from vision_hud import connect_frame_msg
+from voice_codex_core import DEFAULT_COMMANDS, execute_intent, parse_intent
 
 
-DEFAULT_DEMO_COMMANDS = "help|doctor|git status|ask codex summarize this repo|exit"
+DEFAULT_DEMO_COMMANDS = DEFAULT_COMMANDS
 
 
 def build_parser() -> argparse.ArgumentParser:
@@ -58,7 +54,13 @@ def build_parser() -> argparse.ArgumentParser:
     return parser
 
 
+def compact_for_args(args, text: str) -> str:
+    from frame_utils import compact_text
+    return compact_text(text, args.limit)
+
+
 async def run_demo(args) -> None:
+    args.compact_text = lambda text: compact_for_args(args, text)
     commands = choose_demo_lines(args.demo_commands)
     for command_text in commands:
         print(f"[frame-mic-codex] heard={command_text}")
@@ -94,6 +96,7 @@ async def run_live(args) -> None:
     step_bytes = max(2, int(step_seconds * bytes_per_second))
     last_heard = ""
     unicode_mode = True
+    args.compact_text = lambda text: compact_for_args(args, text)
 
     await connect_frame_msg(frame, args.name)
     try:
