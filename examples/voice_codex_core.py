@@ -274,6 +274,31 @@ def describe_intent(intent: BridgeIntent) -> str:
     return intent.action.replace("_", " ")
 
 
+def dry_run_message(intent: BridgeIntent, args, locale: str) -> str:
+    if intent.action == 'doctor':
+        return 'Would run doctor' if locale == 'en' else '将执行环境检查'
+    if intent.action == 'scan':
+        return 'Would scan Frame devices' if locale == 'en' else '将扫描 Frame 设备'
+    if intent.action == 'pair_test':
+        return 'Would run pair test' if locale == 'en' else '将执行连接测试'
+    if intent.action == 'list_tasks':
+        return 'Would list tasks' if locale == 'en' else '将读取任务列表'
+    if intent.action == 'pin_next_task':
+        return 'Would pin next task' if locale == 'en' else '将置顶下一任务'
+    if intent.action == 'git_status':
+        return 'Would check git status' if locale == 'en' else '将查看 git 状态'
+    if intent.action == 'run_tests':
+        return f"Would run tests: {args.test_command}" if locale == 'en' else f"将运行测试：{args.test_command}"
+    if intent.action == 'codex_resume':
+        return 'Would resume the last Codex task' if locale == 'en' else '将继续最近一次 Codex 会话'
+    if intent.action == 'codex_review':
+        return 'Would run a code review' if locale == 'en' else '将执行代码审查'
+    if intent.action == 'codex_exec':
+        payload = (intent.payload or '').strip()
+        return f"Would ask Codex to {payload}" if locale == 'en' else f"将让 Codex：{payload}"
+    return 'Would run action' if locale == 'en' else '将执行动作'
+
+
 async def run_subprocess(command: list[str], cwd: Path, dry_run: bool) -> Tuple[int, str]:
     if dry_run:
         return 0, f"DRY RUN: {' '.join(command)}"
@@ -404,37 +429,57 @@ async def execute_intent(args, intent: BridgeIntent) -> Tuple[str, bool]:
         return nothing_pending(locale, "cancel"), False
 
     if intent.action == "doctor":
+        if args.dry_run:
+            return dry_run_message(intent, args, locale), False
         code, output = await run_subprocess([sys.executable, str(repo / "frame_lab.py"), "doctor"], repo, args.dry_run)
         return args.compact_text(summarize_doctor_output(output or f"doctor exit {code}", locale=locale)), False
     if intent.action == "scan":
+        if args.dry_run:
+            return dry_run_message(intent, args, locale), False
         code, output = await run_subprocess([sys.executable, str(repo / "frame_lab.py"), "scan"], repo, args.dry_run)
         return args.compact_text(summarize_scan_output(output or f"scan exit {code}", locale=locale)), False
     if intent.action == "pair_test":
+        if args.dry_run:
+            return dry_run_message(intent, args, locale), False
         code, output = await run_subprocess([sys.executable, str(repo / "frame_lab.py"), "pair-test", "--", "--text", "Hello from voice bridge"], repo, args.dry_run)
         return args.compact_text(summarize_pair_test_output(output or f"pair-test exit {code}", locale=locale)), False
     if intent.action == "list_tasks":
+        if args.dry_run:
+            return dry_run_message(intent, args, locale), False
         code, output = await run_subprocess([sys.executable, str(repo / "frame_lab.py"), "task-board", "--", "list"], repo, args.dry_run)
         return args.compact_text(summarize_task_list_output(output or f"task list exit {code}", locale=locale)), False
     if intent.action == "pin_next_task":
+        if args.dry_run:
+            return dry_run_message(intent, args, locale), False
         code, output = await run_subprocess([sys.executable, str(repo / "frame_lab.py"), "task-board", "--", "pin-next"], repo, args.dry_run)
         return args.compact_text(output or f"pin-next exit {code}"), False
     if intent.action == "git_status":
+        if args.dry_run:
+            return dry_run_message(intent, args, locale), False
         code, output = await run_shell_text("git status --short --branch", repo, args.dry_run)
         return args.compact_text(summarize_git_status(output or f"git status exit {code}", locale=locale)), False
     if intent.action == "run_tests":
+        if args.dry_run:
+            return dry_run_message(intent, args, locale), False
         code, output = await run_shell_text(args.test_command, repo, args.dry_run)
         label = "tests passed" if code == 0 else f"tests failed ({code})"
         detail = args.compact_text(summarize_pytest_output(output or label, code, locale=locale))
         return detail, False
     if intent.action == "codex_resume":
+        if args.dry_run:
+            return dry_run_message(intent, args, locale), False
         code, output = await run_codex_resume(args)
         label = summarize_codex_output(output or f"codex resume exit {code}", locale=locale)
         return args.compact_text(f"CODEX {label}"), False
     if intent.action == "codex_review":
+        if args.dry_run:
+            return dry_run_message(intent, args, locale), False
         code, output = await run_codex_review(args)
         label = summarize_codex_output(output or f"codex review exit {code}", locale=locale)
         return args.compact_text(f"CODEX {label}"), False
     if intent.action == "codex_exec":
+        if args.dry_run:
+            return dry_run_message(intent, args, locale), False
         code, output = await run_codex_exec(args, intent.payload or "")
         label = summarize_codex_output(output or f"codex exit {code}", locale=locale)
         return args.compact_text(f"CODEX {label}"), False
