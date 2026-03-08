@@ -40,6 +40,7 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument("--repo", default=".", help="Repo root used for local commands and Codex exec")
     parser.add_argument("--dry-run", action="store_true", help="Do not run commands; only print what would happen")
     parser.add_argument("--render-mode", choices=("auto", "plain", "unicode"), default="auto", help="Result rendering mode on Frame")
+    parser.add_argument("--visual-broadcast", action="store_true", help="Use a screen-first preset: unicode, large/high-priority display, and paged long results")
     parser.add_argument("--font-family", default=None, help="Optional font path for unicode rendering")
     parser.add_argument("--font-size", type=int, default=28, help="Unicode result font size")
     parser.add_argument("--display-width", type=int, default=600, help="Unicode result layout width")
@@ -113,6 +114,21 @@ def preflight_runtime(args) -> None:
 
     if not args.dry_run:
         args.codex_bin = resolve_codex_bin(args)
+
+
+
+
+def apply_visual_broadcast_preset(args) -> None:
+    if not args.visual_broadcast:
+        return
+    args.render_mode = 'unicode'
+    args.announce_high_priority = True
+    args.page_results = True
+    args.page_max_chars = min(getattr(args, 'page_max_chars', 90), 28)
+    args.page_delay = max(getattr(args, 'page_delay', 1.2), 1.4)
+    args.font_size = max(getattr(args, 'font_size', 28), 40)
+    args.display_width = min(getattr(args, 'display_width', 600), 520)
+    args.max_rows = min(getattr(args, 'max_rows', 3), 2)
 
 
 class ResultDisplay:
@@ -310,6 +326,7 @@ async def async_main() -> None:
     profile = load_weather_profile(Path(args.weather_profile).expanduser())
     if not args.default_weather_location and profile.get("default_weather_location"):
         args.default_weather_location = profile.get("default_weather_location")
+    apply_visual_broadcast_preset(args)
     if args.demo:
         await run_demo(args)
         return

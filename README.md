@@ -1255,6 +1255,20 @@ python examples/frame_mic_codex_bridge.py --name "Frame EF" --language zh --rend
 python examples/frame_mic_codex_bridge.py --name "Frame EF" --language zh --render-mode unicode --announce-high-priority
 ```
 
+如果你想一键切到“屏幕播报优先”的预设：
+
+```bash
+python examples/frame_mic_codex_bridge.py --name "Frame EF" --language zh --visual-broadcast
+```
+
+这个预设会自动打开：
+
+- `--render-mode unicode`
+- `--announce-high-priority`
+- `--page-results`
+- 更大的字体和更少的行数
+
+
 如果你还想让 Mac mini 直接语音播报结果：
 
 ```bash
