@@ -158,12 +158,6 @@ def expired_message(locale: str) -> str:
     return 'VOICE CODEX confirmation timed out.' if locale == 'en' else '确认已超时，请重新发出命令。'
 
 
-def confirmation_prompt(intent: "BridgeIntent", locale: str = 'en') -> str:
-    if locale == 'en':
-        return f'Confirm {describe_intent(intent)}? Say confirm or cancel.'
-    return f'确认执行：{describe_intent(intent)}？请说 confirm 或 cancel。'
-
-
 def normalize_shortcut_key(text: str) -> str:
     return normalize_command_text(text)
 
@@ -249,7 +243,31 @@ def requires_confirmation(intent: BridgeIntent) -> bool:
     return intent.action in ("run_tests", "codex_exec", "codex_resume", "codex_review")
 
 
-def describe_intent(intent: BridgeIntent) -> str:
+def describe_intent(intent: BridgeIntent, locale: str = 'en') -> str:
+    if locale == 'zh':
+        if intent.action == "run_tests":
+            return "运行测试"
+        if intent.action == "codex_exec":
+            payload = (intent.payload or "").strip()
+            return f"让 Codex：{payload}" if payload else "让 Codex 执行"
+        if intent.action == "codex_resume":
+            return "继续最近一次 Codex 会话"
+        if intent.action == "codex_review":
+            return "执行代码审查"
+        if intent.action == "pair_test":
+            return "执行连接测试"
+        if intent.action == "doctor":
+            return "执行环境检查"
+        if intent.action == "scan":
+            return "扫描 Frame 设备"
+        if intent.action == "git_status":
+            return "查看 git 状态"
+        if intent.action == "list_tasks":
+            return "读取任务列表"
+        if intent.action == "pin_next_task":
+            return "置顶下一任务"
+        return intent.action.replace("_", " ")
+
     if intent.action == "run_tests":
         return "run tests"
     if intent.action == "codex_exec":
@@ -272,6 +290,12 @@ def describe_intent(intent: BridgeIntent) -> str:
     if intent.action == "pin_next_task":
         return "pin next task"
     return intent.action.replace("_", " ")
+
+
+def confirmation_prompt(intent: "BridgeIntent", locale: str = 'en') -> str:
+    if locale == 'en':
+        return f"Confirm {describe_intent(intent, locale)}? Say confirm or cancel."
+    return f"确认执行：{describe_intent(intent, locale)}。请说 confirm 或 cancel。"
 
 
 def dry_run_message(intent: BridgeIntent, args, locale: str) -> str:
