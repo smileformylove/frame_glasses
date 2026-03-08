@@ -166,6 +166,7 @@ python frame_lab.py tap-vision -- --demo
 python frame_lab.py memory -- list
 python frame_lab.py tap-memory -- --demo
 python frame_lab.py voice -- --demo
+python frame_lab.py voice-codex -- --demo --dry-run
 python frame_lab.py doctor
 python frame_lab.py frame-mic -- --duration 5
 python frame_lab.py frame-mic-live -- --demo --dry-run
@@ -173,6 +174,7 @@ python frame_lab.py agent-hud -- serve --dry-run
 python frame_lab.py notify-run -- -- python3 -c "print('tests passed')"
 python frame_lab.py showcase
 python frame_lab.py task-board -- list
+python frame_lab.py voice-codex -- --demo --dry-run
 ```
 
 说明：
@@ -659,6 +661,7 @@ python examples/tap_memory_hud.py --name "Frame 4F" --analyzer openai --output-l
 ```bash
 python frame_lab.py tap-memory -- --demo
 python frame_lab.py voice -- --demo
+python frame_lab.py voice-codex -- --demo --dry-run
 python frame_lab.py doctor
 python frame_lab.py tap-memory -- --name "Frame 4F" --analyzer ocr --ocr-language chi_sim+eng --render-mode unicode
 ```
@@ -1034,7 +1037,50 @@ python frame_lab.py task-board -- list
 python frame_lab.py task-board -- pin-next
 ```
 
-## 19. 这套 starter 适合继续扩展什么
+## 19. Voice Codex Bridge：语音触发 Codex 和开发命令
+
+这条链路是对你刚才问题的直接回应：
+
+- 说 `doctor` -> 跑环境检查
+- 说 `scan frame` -> 扫描眼镜
+- 说 `pair test` -> 做连接测试
+- 说 `git status` -> 看仓库状态
+- 说 `list tasks` / `pin next task` -> 操作任务板
+- 说 `run tests` -> 执行测试命令
+- 说 `ask codex ...` -> 直接调用本机 `codex exec`
+
+### 19.1 先本地预览
+
+```bash
+python examples/voice_codex_bridge.py --demo --dry-run
+```
+
+自定义 demo：
+
+```bash
+python examples/voice_codex_bridge.py --demo --dry-run --demo-commands "help|doctor|git status|list tasks|ask codex summarize this repo|exit"
+```
+
+### 19.2 真机运行
+
+```bash
+python examples/voice_codex_bridge.py --name "Frame EF" --language zh --render-mode unicode
+```
+
+如果你希望 `ask codex ...` 执行时更自动：
+
+```bash
+python examples/voice_codex_bridge.py --name "Frame EF" --language zh --render-mode unicode --codex-full-auto --codex-ephemeral
+```
+
+### 19.3 统一入口
+
+```bash
+python frame_lab.py voice-codex -- --demo --dry-run
+python frame_lab.py voice-codex -- --name "Frame EF" --language zh --render-mode unicode
+```
+
+## 20. 这套 starter 适合继续扩展什么
 
 ### 会议字幕
 
@@ -1053,7 +1099,7 @@ python frame_lab.py task-board -- pin-next
 - Mac mini 做 OCR / VLM 理解
 - 只回传一小段摘要到眼镜
 
-## 20. 常见问题
+## 21. 常见问题
 
 ### 连不上蓝牙
 
@@ -1139,7 +1185,7 @@ python frame_lab.py task-board -- pin-next
 - 先确保没有别的 Frame 应用占住设备
 - 重新运行脚本，让它自动执行 break/reset/break
 
-## 21. 推荐下一步
+## 22. 推荐下一步
 
 你可以继续沿这条路线做三个 MVP：
 
@@ -1147,7 +1193,7 @@ python frame_lab.py task-board -- pin-next
 2. `Meeting Translate HUD`：双语会议翻译
 3. `Meeting Speaker HUD`：带说话人标签的会议辅助
 
-## 22. 官方资料
+## 23. 官方资料
 
 - GitHub: <https://github.com/brilliantlabsAR>
 - Frame SDK: <https://docs.brilliant.xyz/frame/frame-sdk/>

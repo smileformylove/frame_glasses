@@ -12,9 +12,10 @@ SECTIONS = {
     "tap-vision": ["tap-vision", "--", "--demo", "--analyzer", "mock", "--mock-result", "Showcase tap vision demo works."],
     "memory": ["memory", "--", "remember", "--source", "demo", "--analyzer", "mock", "--mock-result", "Showcase memory desk.", "--note", "This is the showcase memory desk"],
     "voice": ["voice", "--", "--demo", "--dry-run", "--source", "demo", "--demo-commands", "help|describe this|remember this as showcase desk|recall this|exit", "--analyzer", "mock", "--mock-result", "Detected a showcase desk."],
+    "voice-codex": ["voice-codex", "--", "--demo", "--dry-run", "--demo-commands", "help|doctor|git status|ask codex summarize this repo|exit"],
     "frame-mic-live": ["frame-mic-live", "--", "--demo", "--dry-run"],
 }
-DEFAULT_ORDER = ["say", "meeting", "vision", "tap-vision", "memory", "voice", "frame-mic-live"]
+DEFAULT_ORDER = ["say", "meeting", "vision", "tap-vision", "memory", "voice", "voice-codex", "frame-mic-live"]
 
 
 def build_parser() -> argparse.ArgumentParser:
