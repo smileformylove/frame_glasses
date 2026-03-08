@@ -29,10 +29,39 @@ DOCTOR_WORDS = ("doctor", "check environment", "环境检查", "检查环境")
 SCAN_WORDS = ("scan frame", "scan device", "扫描眼镜", "扫描设备")
 PAIR_TEST_WORDS = ("pair test", "test connection", "连接测试", "配对测试")
 GIT_STATUS_WORDS = ("git status", "status", "git 状态", "代码状态", "仓库状态")
-LIST_TASKS_WORDS = ("list tasks", "show tasks", "任务列表", "列任务", "查看任务")
-PIN_NEXT_TASK_WORDS = ("pin next task", "focus task", "pin task", "置顶任务", "下一任务", "聚焦任务")
-RUN_TESTS_WORDS = ("run tests", "run test", "运行测试", "测试一下", "跑测试", "执行测试")
+LIST_TASKS_WORDS = ("list tasks", "show tasks", "任务列表", "列任务", "查看任务", "看看任务")
+PIN_NEXT_TASK_WORDS = ("pin next task", "focus task", "pin task", "置顶任务", "下一任务", "聚焦任务", "置顶下一任务")
+RUN_TESTS_WORDS = ("run tests", "run test", "运行测试", "测试一下", "跑测试", "执行测试", "开始测试", "做测试")
 CODEX_PREFIXES = ("ask codex ", "codex ", "让 codex ", "请 codex ", "让 codex 帮我", "请 codex 帮我")
+
+
+
+COMMON_REPLACEMENTS = {
+    '状太': '状态',
+    '装态': '状态',
+    '庄态': '状态',
+    'git 装态': 'git 状态',
+    'git 状太': 'git 状态',
+    '仓库装态': '仓库状态',
+    'frane': 'frame',
+    'fraem': 'frame',
+    'farme': 'frame',
+    '测是': '测试',
+    '测式': '测试',
+    '册试': '测试',
+    '跑测是': '跑测试',
+    '执行测是': '执行测试',
+    'codx': 'codex',
+    'codec': 'codex',
+    'co d ex': 'codex',
+}
+
+
+def apply_common_replacements(text: str) -> str:
+    corrected = text
+    for source, target in COMMON_REPLACEMENTS.items():
+        corrected = corrected.replace(source, target)
+    return corrected
 
 
 ACTION_PHRASES = {
@@ -70,6 +99,7 @@ def normalize_command_text(text: str) -> str:
     normalized = normalized.replace('：', ':').replace('，', ' ').replace('。', ' ').replace('？', ' ').replace('！', ' ')
     normalized = re.sub(r"[\t\n\r]+", " ", normalized)
     normalized = re.sub(r"\s+", " ", normalized).strip()
+    normalized = apply_common_replacements(normalized)
     for prefix in FILLER_PREFIXES:
         if normalized.startswith(prefix):
             normalized = normalized[len(prefix):].strip()
