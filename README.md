@@ -143,6 +143,7 @@ python frame_lab.py memory -- list
 python frame_lab.py tap-memory -- --demo
 python frame_lab.py voice -- --demo
 python frame_lab.py doctor
+python frame_lab.py frame-mic -- --duration 5
 ```
 
 说明：
@@ -176,6 +177,32 @@ python examples/pair_and_test.py --text "Hello from Mac mini"
 ```bash
 python frame_lab.py pair-test -- --text "Hello from Mac mini"
 ```
+
+检查配对的 Frame 是否真的有摄像头和麦克风：
+
+- 摄像头：
+
+```bash
+python examples/vision_hud.py --name "Frame 4F" --source frame --analyzer mock --mock-result "Frame camera capture OK" --dry-run
+```
+
+- 麦克风：
+
+```bash
+python examples/frame_mic_test.py --name "Frame 4F" --duration 5
+```
+
+或者使用统一入口：
+
+```bash
+python frame_lab.py vision -- --name "Frame 4F" --source frame --analyzer mock --mock-result "Frame camera capture OK" --dry-run
+python frame_lab.py frame-mic -- --name "Frame 4F" --duration 5
+```
+
+当前仓库里要注意：
+
+- `/Users/jixiangluo/Documents/repository/ai_glasses/examples/vision_hud.py:198` 走的是 `Frame` 摄像头
+- `/Users/jixiangluo/Documents/repository/ai_glasses/examples/meeting_hud.py:185` 和 `/Users/jixiangluo/Documents/repository/ai_glasses/examples/voice_command_hud.py:1` 默认用的是 `Mac mini` 本机麦克风，不是眼镜麦克风
 
 把一句话直接显示到眼镜上：
 

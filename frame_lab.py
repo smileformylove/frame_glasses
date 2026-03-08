@@ -17,6 +17,7 @@ COMMANDS = {
     "tap-memory": "examples/tap_memory_hud.py",
     "voice": "examples/voice_command_hud.py",
     "doctor": "examples/doctor.py",
+    "frame-mic": "examples/frame_mic_test.py",
 }
 
 DESCRIPTIONS = {
@@ -32,6 +33,7 @@ DESCRIPTIONS = {
     "tap-memory": "Tap the glasses to recall or save scene memories",
     "voice": "Use voice commands to drive vision and memory workflows",
     "doctor": "Check whether the local environment is ready for Frame development",
+    "frame-mic": "Record a short WAV clip from the Frame microphone",
 }
 
 
