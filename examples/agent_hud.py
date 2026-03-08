@@ -287,6 +287,15 @@ def build_parser() -> argparse.ArgumentParser:
     clear = subparsers.add_parser("clear", help="Clear the pinned notification")
     clear.add_argument("--url", default=f"{DEFAULT_URL}/clear", help="Clear endpoint URL")
 
+    health = subparsers.add_parser("health", help="Query Agent HUD health information")
+    health.add_argument("--url", default=f"{DEFAULT_URL}/health", help="Health endpoint URL")
+
+    recent = subparsers.add_parser("recent", help="Query recent Agent HUD notifications")
+    recent.add_argument("--url", default=f"{DEFAULT_URL}/recent", help="Recent notifications endpoint URL")
+
+    pinned = subparsers.add_parser("pinned", help="Query the current pinned notification")
+    pinned.add_argument("--url", default=f"{DEFAULT_URL}/pinned", help="Pinned notification endpoint URL")
+
     demo = subparsers.add_parser("demo", help="Run a local demo by sending sample notifications")
     demo.add_argument("--url", default=DEFAULT_URL, help="Base service URL without the endpoint suffix")
     demo.add_argument("--prefix", default="AGENT", help="Notification prefix")
@@ -330,6 +339,14 @@ def clear_notification(url: str) -> None:
     post_json(url, {})
 
 
+def get_json(url: str) -> None:
+    try:
+        with urllib.request.urlopen(url, timeout=5) as response:
+            print(response.read().decode("utf-8"))
+    except urllib.error.URLError as exc:
+        raise SystemExit(f"Failed to query Agent HUD: {exc}") from exc
+
+
 async def run_demo(base_url: str, prefix: str) -> None:
     samples = [
         ("Starting repo checks", "info"),
@@ -363,6 +380,15 @@ async def async_main() -> None:
         return
     if args.command == "clear":
         clear_notification(args.url)
+        return
+    if args.command == "health":
+        get_json(args.url)
+        return
+    if args.command == "recent":
+        get_json(args.url)
+        return
+    if args.command == "pinned":
+        get_json(args.url)
         return
     if args.command == "demo":
         await run_demo(args.url, args.prefix)

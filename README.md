@@ -813,6 +813,7 @@ python frame_lab.py agent-hud -- serve --dry-run
 python frame_lab.py agent-hud -- send --text "Build succeeded" --level ok
 python frame_lab.py agent-hud -- pin --text "Ship the demo"
 python frame_lab.py agent-hud -- clear
+python frame_lab.py agent-hud -- health
 ```
 
 ### 16.4.1 直接包一层命令
@@ -844,6 +845,14 @@ python frame_lab.py notify-run -- --pin-running --clear-pin-on-exit --name "pyte
 - `GET http://127.0.0.1:8765/health`
 - `GET http://127.0.0.1:8765/recent`
 - `GET http://127.0.0.1:8765/pinned`
+
+也可以直接用 CLI：
+
+```bash
+python examples/agent_hud.py health
+python examples/agent_hud.py recent
+python examples/agent_hud.py pinned
+```
 
 ### 16.6 开机常驻（macOS LaunchAgent）
 
