@@ -1123,8 +1123,8 @@ python frame_lab.py task-board -- pin-next
 - 说 `pair test` -> 做连接测试
 - 说 `git status` -> 看仓库状态
 - 说 `list tasks` / `pin next task` -> 操作任务板
-- 说 `run tests` -> 执行测试命令
-- 说 `ask codex ...` -> 直接调用本机 `codex exec`
+- 说 `run tests` -> 进入确认态，再说 `confirm` 才执行
+- 说 `ask codex ...` -> 进入确认态，再说 `confirm` 才直接调用本机 `codex exec`
 
 ### 19.1 先本地预览
 
@@ -1135,7 +1135,7 @@ python examples/voice_codex_bridge.py --demo --dry-run
 自定义 demo：
 
 ```bash
-python examples/voice_codex_bridge.py --demo --dry-run --demo-commands "help|doctor|git status|list tasks|ask codex summarize this repo|exit"
+python examples/voice_codex_bridge.py --demo --dry-run --demo-commands "help|run tests|confirm|ask codex summarize this repo|confirm|exit"
 ```
 
 ### 19.2 真机运行
@@ -1170,6 +1170,8 @@ python frame_lab.py voice-codex -- --name "Frame EF" --language zh --render-mode
 ```bash
 python examples/frame_mic_codex_bridge.py --demo --dry-run
 ```
+
+高代价命令现在会先提示确认，例如你说 `run tests` 后，需要再说 `confirm`。
 
 ### 20.2 真机运行
 

@@ -6,18 +6,20 @@ from pathlib import Path
 from typing import Optional, Tuple
 
 
-DEFAULT_COMMANDS = "help|doctor|scan frame|pair test|git status|list tasks|pin next task|run tests|ask codex summarize the repo|exit"
-DEFAULT_HELP_TEXT = "VOICE CODEX help: doctor, scan, pair test, git status, list tasks, pin next task, run tests, ask codex ..., exit"
+DEFAULT_COMMANDS = "help|doctor|scan frame|pair test|git status|list tasks|pin next task|run tests|ask codex summarize the repo|confirm|cancel|exit"
+DEFAULT_HELP_TEXT = "VOICE CODEX help: doctor, scan, pair test, git status, list tasks, pin next task, run tests, ask codex ..., confirm, cancel, exit"
 EXIT_WORDS = ("exit", "quit", "stop", "结束", "退出", "停止")
 HELP_WORDS = ("help", "what can you do", "commands", "帮助")
+CONFIRM_WORDS = ("confirm", "yes", "go ahead", "do it", "确认", "执行", "继续", "好的")
+CANCEL_WORDS = ("cancel", "no", "never mind", "stop that", "取消", "不用了", "算了")
 DOCTOR_WORDS = ("doctor", "check environment", "环境检查", "检查环境")
 SCAN_WORDS = ("scan frame", "scan device", "扫描眼镜", "扫描设备")
 PAIR_TEST_WORDS = ("pair test", "test connection", "连接测试", "配对测试")
-GIT_STATUS_WORDS = ("git status", "status", "git 状态")
-LIST_TASKS_WORDS = ("list tasks", "show tasks", "任务列表", "列任务")
-PIN_NEXT_TASK_WORDS = ("pin next task", "focus task", "pin task", "置顶任务", "下一任务")
-RUN_TESTS_WORDS = ("run tests", "run test", "运行测试", "测试一下")
-CODEX_PREFIXES = ("ask codex ", "codex ", "让 codex ", "请 codex ")
+GIT_STATUS_WORDS = ("git status", "status", "git 状态", "代码状态", "仓库状态")
+LIST_TASKS_WORDS = ("list tasks", "show tasks", "任务列表", "列任务", "查看任务")
+PIN_NEXT_TASK_WORDS = ("pin next task", "focus task", "pin task", "置顶任务", "下一任务", "聚焦任务")
+RUN_TESTS_WORDS = ("run tests", "run test", "运行测试", "测试一下", "跑测试", "执行测试")
+CODEX_PREFIXES = ("ask codex ", "codex ", "让 codex ", "请 codex ", "让 codex 帮我", "请 codex 帮我")
 
 
 class BridgeIntent:
@@ -35,6 +37,10 @@ def parse_intent(text: str) -> BridgeIntent:
         return BridgeIntent("exit", raw=text)
     if any(word in lowered for word in HELP_WORDS):
         return BridgeIntent("help", raw=text)
+    if any(word in lowered for word in CONFIRM_WORDS):
+        return BridgeIntent("confirm", raw=text)
+    if any(word in lowered for word in CANCEL_WORDS):
+        return BridgeIntent("cancel", raw=text)
     if any(word in lowered for word in DOCTOR_WORDS):
         return BridgeIntent("doctor", raw=text)
     if any(word in lowered for word in SCAN_WORDS):
@@ -53,6 +59,35 @@ def parse_intent(text: str) -> BridgeIntent:
         if lowered.startswith(prefix):
             return BridgeIntent("codex_exec", payload=text[len(prefix):].strip(), raw=text)
     return BridgeIntent("unknown", raw=text)
+
+
+def requires_confirmation(intent: BridgeIntent) -> bool:
+    return intent.action in ("run_tests", "codex_exec")
+
+
+def describe_intent(intent: BridgeIntent) -> str:
+    if intent.action == "run_tests":
+        return "run tests"
+    if intent.action == "codex_exec":
+        payload = (intent.payload or "").strip()
+        return f"ask Codex to {payload}" if payload else "ask Codex"
+    if intent.action == "pair_test":
+        return "run pair test"
+    if intent.action == "doctor":
+        return "run doctor"
+    if intent.action == "scan":
+        return "scan Frame"
+    if intent.action == "git_status":
+        return "show git status"
+    if intent.action == "list_tasks":
+        return "list tasks"
+    if intent.action == "pin_next_task":
+        return "pin next task"
+    return intent.action.replace("_", " ")
+
+
+def confirmation_prompt(intent: BridgeIntent) -> str:
+    return f"Confirm {describe_intent(intent)}? Say confirm or cancel."
 
 
 async def run_subprocess(command: list[str], cwd: Path, dry_run: bool) -> Tuple[int, str]:
@@ -117,6 +152,10 @@ async def execute_intent(args, intent: BridgeIntent) -> Tuple[str, bool]:
         return "VOICE CODEX stopping", True
     if intent.action == "unknown":
         return "VOICE CODEX unknown command. Say help.", False
+    if intent.action == "confirm":
+        return "VOICE CODEX nothing pending to confirm.", False
+    if intent.action == "cancel":
+        return "VOICE CODEX nothing pending to cancel.", False
 
     if intent.action == "doctor":
         code, output = await run_subprocess([sys.executable, str(repo / "frame_lab.py"), "doctor"], repo, args.dry_run)

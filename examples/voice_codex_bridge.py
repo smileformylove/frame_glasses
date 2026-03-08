@@ -12,7 +12,14 @@ from meeting_hud import (
     parse_audio_device,
 )
 from vision_hud import choose_display
-from voice_codex_core import DEFAULT_COMMANDS, DEFAULT_HELP_TEXT, execute_intent, parse_intent
+from voice_codex_core import (
+    DEFAULT_COMMANDS,
+    DEFAULT_HELP_TEXT,
+    confirmation_prompt,
+    execute_intent,
+    parse_intent,
+    requires_confirmation,
+)
 
 
 def build_parser() -> argparse.ArgumentParser:
@@ -70,13 +77,33 @@ async def run_demo(args) -> None:
     display = ResultDisplay(args)
     args.compact_text = lambda text: compact_for_args(args, text)
     commands = [part.strip() for part in args.demo_commands.split("|") if part.strip()]
+    pending_intent = None
     for command_text in commands:
         print(f"[voice-codex] heard={command_text}")
         intent = parse_intent(command_text)
-        try:
-            message, should_exit = await execute_intent(args, intent)
-        except Exception as exc:
-            message, should_exit = f"VOICE CODEX error: {exc}", False
+        confirmed = False
+        if pending_intent is not None:
+            if intent.action == "confirm":
+                intent = pending_intent
+                pending_intent = None
+                confirmed = True
+            elif intent.action == "cancel":
+                message, should_exit = "VOICE CODEX canceled.", False
+                pending_intent = None
+                print(f"[voice-codex] result={message}")
+                if not args.dry_run:
+                    await display.show(message)
+                continue
+            else:
+                pending_intent = None
+        if requires_confirmation(intent) and not confirmed:
+            pending_intent = intent
+            message, should_exit = confirmation_prompt(intent), False
+        else:
+            try:
+                message, should_exit = await execute_intent(args, intent)
+            except Exception as exc:
+                message, should_exit = f"VOICE CODEX error: {exc}", False
         print(f"[voice-codex] result={message}")
         if not args.dry_run:
             await display.show(message)
@@ -95,6 +122,7 @@ async def run_live(args) -> None:
     )
     args.compact_text = lambda text: compact_for_args(args, text)
     display = ResultDisplay(args)
+    pending_intent = None
     await display.show("VOICE CODEX ready. Say help, doctor, scan, run tests, ask codex, or exit.")
 
     while True:
@@ -111,10 +139,29 @@ async def run_live(args) -> None:
 
         print(f"[voice-codex] heard={text}")
         intent = parse_intent(text)
-        try:
-            message, should_exit = await execute_intent(args, intent)
-        except Exception as exc:
-            message, should_exit = f"VOICE CODEX error: {exc}", False
+        confirmed = False
+        if pending_intent is not None:
+            if intent.action == "confirm":
+                intent = pending_intent
+                pending_intent = None
+                confirmed = True
+            elif intent.action == "cancel":
+                message, should_exit = "VOICE CODEX canceled.", False
+                pending_intent = None
+                print(f"[voice-codex] result={message}")
+                await display.show(message)
+                continue
+            else:
+                pending_intent = None
+
+        if requires_confirmation(intent) and not confirmed:
+            pending_intent = intent
+            message, should_exit = confirmation_prompt(intent), False
+        else:
+            try:
+                message, should_exit = await execute_intent(args, intent)
+            except Exception as exc:
+                message, should_exit = f"VOICE CODEX error: {exc}", False
         print(f"[voice-codex] result={message}")
         await display.show(message)
         if should_exit:

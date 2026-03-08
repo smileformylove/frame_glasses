@@ -13,7 +13,7 @@ from frame_mic_live_hud import (
 )
 from meeting_hud import FasterWhisperTranscriber
 from vision_hud import connect_frame_msg
-from voice_codex_core import DEFAULT_COMMANDS, execute_intent, parse_intent
+from voice_codex_core import DEFAULT_COMMANDS, confirmation_prompt, execute_intent, parse_intent, requires_confirmation
 
 
 DEFAULT_DEMO_COMMANDS = DEFAULT_COMMANDS
@@ -84,13 +84,32 @@ def compact_for_args(args, text: str) -> str:
 async def run_demo(args) -> None:
     args.compact_text = lambda text: compact_for_args(args, text)
     commands = choose_demo_lines(args.demo_commands)
+    pending_intent = None
     for command_text in commands:
         print(f"[frame-mic-codex] heard={command_text}")
         intent = parse_intent(command_text)
-        try:
-            message, should_exit = await execute_intent(args, intent)
-        except Exception as exc:
-            message, should_exit = f"VOICE CODEX error: {exc}", False
+        confirmed = False
+        if pending_intent is not None:
+            if intent.action == "confirm":
+                intent = pending_intent
+                pending_intent = None
+                confirmed = True
+            elif intent.action == "cancel":
+                message, should_exit = "VOICE CODEX canceled.", False
+                pending_intent = None
+                print(f"[frame-mic-codex] result={message}")
+                await send_status_text(None, message, args, unicode_mode=True)
+                continue
+            else:
+                pending_intent = None
+        if requires_confirmation(intent) and not confirmed:
+            pending_intent = intent
+            message, should_exit = confirmation_prompt(intent), False
+        else:
+            try:
+                message, should_exit = await execute_intent(args, intent)
+            except Exception as exc:
+                message, should_exit = f"VOICE CODEX error: {exc}", False
         print(f"[frame-mic-codex] result={message}")
         await send_status_text(None, message, args, unicode_mode=True)
         if should_exit:
@@ -119,6 +138,7 @@ async def run_live_once(args) -> None:
     last_heard = ""
     unicode_mode = True
     args.compact_text = lambda text: compact_for_args(args, text)
+    pending_intent = None
 
     await connect_frame_msg(frame, args.name)
     try:
@@ -151,10 +171,30 @@ async def run_live_once(args) -> None:
                 print(f"[frame-mic-codex] heard={heard}")
 
                 intent = parse_intent(heard)
-                try:
-                    message, should_exit = await execute_intent(args, intent)
-                except Exception as exc:
-                    message, should_exit = f"VOICE CODEX error: {exc}", False
+                confirmed = False
+                if pending_intent is not None:
+                    if intent.action == "confirm":
+                        intent = pending_intent
+                        pending_intent = None
+                        confirmed = True
+                    elif intent.action == "cancel":
+                        message, should_exit = "VOICE CODEX canceled.", False
+                        pending_intent = None
+                        append_log(log_file, f"result: {message}")
+                        print(f"[frame-mic-codex] result={message}")
+                        await send_status_text(frame, message, args, unicode_mode)
+                        continue
+                    else:
+                        pending_intent = None
+
+                if requires_confirmation(intent) and not confirmed:
+                    pending_intent = intent
+                    message, should_exit = confirmation_prompt(intent), False
+                else:
+                    try:
+                        message, should_exit = await execute_intent(args, intent)
+                    except Exception as exc:
+                        message, should_exit = f"VOICE CODEX error: {exc}", False
                 append_log(log_file, f"result: {message}")
                 print(f"[frame-mic-codex] result={message}")
                 await send_status_text(frame, message, args, unicode_mode)
