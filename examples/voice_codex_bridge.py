@@ -22,6 +22,7 @@ from voice_codex_core import (
     expired_message,
     locale_for_args,
     parse_intent,
+    progress_message,
     requires_confirmation,
 )
 
@@ -106,7 +107,10 @@ async def resolve_voice_intent(args, raw_text: str, pending_intent, pending_expi
     if requires_confirmation(intent) and not confirmed:
         return confirmation_prompt(intent, locale), False, intent, time.monotonic() + args.confirm_timeout
 
+    progress = progress_message(intent, locale) if requires_confirmation(intent) and confirmed else ""
     message, should_exit = await execute_intent(args, intent)
+    if progress and not args.dry_run:
+        await ResultDisplay(args).show(progress)
     return message, should_exit, pending_intent, pending_expires_at
 
 

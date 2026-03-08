@@ -298,6 +298,28 @@ def confirmation_prompt(intent: "BridgeIntent", locale: str = 'en') -> str:
     return f"确认执行：{describe_intent(intent, locale)}。请说 confirm 或 cancel。"
 
 
+def progress_message(intent: BridgeIntent, locale: str = 'en') -> str:
+    if locale == 'zh':
+        if intent.action == 'run_tests':
+            return '正在运行测试...'
+        if intent.action == 'codex_resume':
+            return '正在继续最近一次 Codex 会话...'
+        if intent.action == 'codex_review':
+            return '正在执行代码审查...'
+        if intent.action == 'codex_exec':
+            return '正在请求 Codex...'
+        return '正在执行...'
+    if intent.action == 'run_tests':
+        return 'Running tests...'
+    if intent.action == 'codex_resume':
+        return 'Resuming the last Codex task...'
+    if intent.action == 'codex_review':
+        return 'Running code review...'
+    if intent.action == 'codex_exec':
+        return 'Asking Codex...'
+    return 'Running command...'
+
+
 def dry_run_message(intent: BridgeIntent, args, locale: str) -> str:
     if intent.action == 'doctor':
         return 'Would run doctor' if locale == 'en' else '将执行环境检查'
