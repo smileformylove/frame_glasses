@@ -20,6 +20,7 @@ COMMANDS = {
     "agent-hud": "examples/agent_hud.py",
     "notify-run": "examples/notify_run.py",
     "showcase": "examples/showcase.py",
+    "task-board": "examples/task_board_hud.py",
     "frame-mic": "examples/frame_mic_test.py",
     "frame-mic-live": "examples/frame_mic_live_hud.py",
 }
@@ -40,6 +41,7 @@ DESCRIPTIONS = {
     "agent-hud": "Run a persistent notification service and sender for Frame",
     "notify-run": "Run a command and send its status to Agent HUD",
     "showcase": "Run a curated sequence of dry-run demos",
+    "task-board": "Manage local tasks and pin the current focus to Agent HUD",
     "frame-mic": "Record a short WAV clip from the Frame microphone",
     "frame-mic-live": "Stream and transcribe audio from the Frame microphone",
 }

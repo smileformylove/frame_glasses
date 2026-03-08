@@ -172,6 +172,7 @@ python frame_lab.py frame-mic-live -- --demo --dry-run
 python frame_lab.py agent-hud -- serve --dry-run
 python frame_lab.py notify-run -- -- python3 -c "print('tests passed')"
 python frame_lab.py showcase
+python frame_lab.py task-board -- list
 ```
 
 说明：
@@ -910,6 +911,7 @@ python examples/notify_run.py --pin-running --clear-pin-on-exit --name "pytest" 
 ```bash
 python frame_lab.py notify-run -- -- python3 -c "print('tests passed')"
 python frame_lab.py showcase
+python frame_lab.py task-board -- list
 python frame_lab.py notify-run -- --pin-running --clear-pin-on-exit --name "pytest" -- pytest -q
 ```
 
@@ -979,9 +981,60 @@ python examples/showcase.py --list
 
 ```bash
 python frame_lab.py showcase
+python frame_lab.py task-board -- list
 ```
 
-## 18. 这套 starter 适合继续扩展什么
+## 18. Task Board HUD：把当前任务 pin 到眼镜
+
+这层是 `Agent HUD` 的一个自然延伸：
+
+- 本地维护一个轻量任务清单
+- 选出当前最重要的任务
+- 一键 pin 到眼镜，变成你的“当前焦点”
+
+### 18.1 添加和查看任务
+
+```bash
+python examples/task_board_hud.py add --text "Stabilize Frame BLE reconnection" --priority 1 --tag ble
+python examples/task_board_hud.py add --text "Polish Vision HUD OCR" --priority 2 --tag vision
+python examples/task_board_hud.py list
+```
+
+### 18.2 pin 当前最重要任务
+
+先确保 `Agent HUD` 服务在跑：
+
+```bash
+python examples/agent_hud.py serve --name "Frame 4F" --render-mode unicode
+```
+
+然后 pin：
+
+```bash
+python examples/task_board_hud.py pin-next
+```
+
+完成后标记 done：
+
+```bash
+python examples/task_board_hud.py done 0001
+```
+
+清除 pin：
+
+```bash
+python examples/task_board_hud.py clear-pin
+```
+
+### 18.3 统一入口
+
+```bash
+python frame_lab.py task-board -- add --text "Ship the Frame demo" --priority 1
+python frame_lab.py task-board -- list
+python frame_lab.py task-board -- pin-next
+```
+
+## 19. 这套 starter 适合继续扩展什么
 
 ### 会议字幕
 
@@ -1000,7 +1053,7 @@ python frame_lab.py showcase
 - Mac mini 做 OCR / VLM 理解
 - 只回传一小段摘要到眼镜
 
-## 19. 常见问题
+## 20. 常见问题
 
 ### 连不上蓝牙
 
@@ -1086,7 +1139,7 @@ python frame_lab.py showcase
 - 先确保没有别的 Frame 应用占住设备
 - 重新运行脚本，让它自动执行 break/reset/break
 
-## 20. 推荐下一步
+## 21. 推荐下一步
 
 你可以继续沿这条路线做三个 MVP：
 
@@ -1094,7 +1147,7 @@ python frame_lab.py showcase
 2. `Meeting Translate HUD`：双语会议翻译
 3. `Meeting Speaker HUD`：带说话人标签的会议辅助
 
-## 21. 官方资料
+## 22. 官方资料
 
 - GitHub: <https://github.com/brilliantlabsAR>
 - Frame SDK: <https://docs.brilliant.xyz/frame/frame-sdk/>
