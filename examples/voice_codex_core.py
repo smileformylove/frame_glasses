@@ -1,3 +1,4 @@
+import difflib
 import re
 import asyncio
 import subprocess
@@ -22,6 +23,36 @@ LIST_TASKS_WORDS = ("list tasks", "show tasks", "任务列表", "列任务", "�
 PIN_NEXT_TASK_WORDS = ("pin next task", "focus task", "pin task", "置顶任务", "下一任务", "聚焦任务")
 RUN_TESTS_WORDS = ("run tests", "run test", "运行测试", "测试一下", "跑测试", "执行测试")
 CODEX_PREFIXES = ("ask codex ", "codex ", "让 codex ", "请 codex ", "让 codex 帮我", "请 codex 帮我")
+
+
+ACTION_PHRASES = {
+    "help": ("help", "commands", "帮助", "你能做什么"),
+    "doctor": ("doctor", "check environment", "环境检查", "检查环境"),
+    "scan": ("scan frame", "scan device", "扫描眼镜", "扫描设备", "扫描 frame"),
+    "pair_test": ("pair test", "test connection", "连接测试", "配对测试", "测试连接"),
+    "git_status": ("git status", "git 状态", "代码状态", "仓库状态"),
+    "list_tasks": ("list tasks", "show tasks", "任务列表", "列任务", "查看任务"),
+    "pin_next_task": ("pin next task", "focus task", "置顶任务", "下一任务", "聚焦任务"),
+    "run_tests": ("run tests", "运行测试", "跑测试", "执行测试"),
+    "confirm": ("confirm", "确认", "执行", "继续", "好的"),
+    "cancel": ("cancel", "取消", "不用了", "算了"),
+    "exit": ("exit", "quit", "结束", "退出", "停止"),
+}
+FUZZY_THRESHOLD = 0.72
+
+
+def fuzzy_match_action(text: str) -> Optional[str]:
+    best_action = None
+    best_score = 0.0
+    for action, phrases in ACTION_PHRASES.items():
+        for phrase in phrases:
+            score = difflib.SequenceMatcher(None, text, phrase).ratio()
+            if score > best_score:
+                best_score = score
+                best_action = action
+    if best_score >= FUZZY_THRESHOLD:
+        return best_action
+    return None
 
 
 def normalize_command_text(text: str) -> str:
@@ -84,16 +115,24 @@ def parse_intent(text: str, wake_word: Optional[str] = None) -> BridgeIntent:
         return BridgeIntent("run_tests", raw=text)
     if any(word in lowered for word in GIT_STATUS_WORDS):
         return BridgeIntent("git_status", raw=text)
+    if "codex" in lowered and not any(lowered.startswith(prefix) for prefix in CODEX_PREFIXES):
+        codex_index = lowered.find("codex")
+        payload = lowered[codex_index + len("codex"):].strip()
+        if payload:
+            return BridgeIntent("codex_exec", payload=payload, raw=text)
+    fuzzy_action = fuzzy_match_action(lowered)
+    if fuzzy_action is not None:
+        return BridgeIntent(fuzzy_action, raw=text)
     for prefix in CODEX_PREFIXES:
         if lowered.startswith(prefix):
-            payload = text[len(prefix):].strip()
-            payload_lower = payload.lower()
+            payload = lowered[len(prefix):].strip()
             for nested_prefix in CODEX_PREFIXES:
-                if payload_lower.startswith(nested_prefix):
+                if payload.startswith(nested_prefix):
                     payload = payload[len(nested_prefix):].strip()
-                    payload_lower = payload.lower()
                     break
             return BridgeIntent("codex_exec", payload=payload, raw=text)
+    if wake_word and lowered:
+        return BridgeIntent("codex_exec", payload=lowered, raw=text)
     return BridgeIntent("unknown", raw=text)
 
 

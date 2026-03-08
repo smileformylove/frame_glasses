@@ -1194,6 +1194,7 @@ python examples/frame_mic_codex_bridge.py --demo --dry-run
 
 高代价命令现在会先提示确认，例如你说 `run tests` 或 `ask codex ...` 后，需要再说 `confirm`。
 如果你配置了 `--wake-word codex`，那普通闲聊会被忽略，只有带唤醒词的命令才会触发。
+另外，当你带唤醒词说一整句自由文本时，系统会默认把它当成 `ask codex ...`。
 
 ### 20.2 真机运行
 
