@@ -148,6 +148,7 @@ python frame_lab.py doctor
 python frame_lab.py frame-mic -- --duration 5
 python frame_lab.py frame-mic-live -- --demo --dry-run
 python frame_lab.py agent-hud -- serve --dry-run
+python frame_lab.py notify-run -- -- python3 -c "print('tests passed')"
 ```
 
 说明：
@@ -798,6 +799,21 @@ python your_agent_script.py | python examples/agent_hud.py pipe --prefix AGENT -
 ```bash
 python frame_lab.py agent-hud -- serve --dry-run
 python frame_lab.py agent-hud -- send --text "Build succeeded" --level ok
+```
+
+### 16.4.1 直接包一层命令
+
+有了 `notify-run` 之后，任何命令都可以自动发开始/关键日志/结束状态通知：
+
+```bash
+python examples/notify_run.py -- -- python3 -c "print('tests passed')"
+python examples/notify_run.py --name "pytest" -- -- pytest -q
+```
+
+结合统一入口：
+
+```bash
+python frame_lab.py notify-run -- -- python3 -c "print('tests passed')"
 ```
 
 ### 16.5 健康检查
