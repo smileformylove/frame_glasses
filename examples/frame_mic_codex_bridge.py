@@ -49,6 +49,9 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument("--codex-full-auto", action="store_true", help="Pass --full-auto to codex exec")
     parser.add_argument("--codex-ephemeral", action="store_true", help="Pass --ephemeral to codex exec")
     parser.add_argument("--log-file", default=None, help="Optional transcript/result log file path")
+    parser.add_argument("--reconnect", action="store_true", help="Automatically restart the live session if Frame disconnects or the stream ends unexpectedly")
+    parser.add_argument("--max-restarts", type=int, default=0, help="Maximum reconnect attempts, 0 means unlimited")
+    parser.add_argument("--restart-delay", type=float, default=2.0, help="Seconds to wait before reconnecting")
     parser.add_argument("--demo", action="store_true", help="Run a local demo without using the Frame microphone")
     parser.add_argument("--demo-commands", default=DEFAULT_DEMO_COMMANDS, help="Pipe-separated command phrases used in demo mode")
     return parser
@@ -75,7 +78,7 @@ async def run_demo(args) -> None:
             break
 
 
-async def run_live(args) -> None:
+async def run_live_once(args) -> None:
     log_file = Path(args.log_file).expanduser() if args.log_file else None
     transcriber = FasterWhisperTranscriber(
         model_name=args.model,
@@ -153,7 +156,19 @@ async def async_main() -> None:
     if args.demo:
         await run_demo(args)
         return
-    await run_live(args)
+    restart_count = 0
+    while True:
+        try:
+            await run_live_once(args)
+            return
+        except Exception as exc:
+            if not args.reconnect:
+                raise
+            restart_count += 1
+            print(f"[frame-mic-codex] reconnect attempt {restart_count}: {exc!r}")
+            if args.max_restarts and restart_count > args.max_restarts:
+                raise
+            await asyncio.sleep(args.restart_delay)
 
 
 def main() -> None:

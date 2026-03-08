@@ -48,6 +48,9 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument("--translation-provider", choices=("auto", "whisper", "openai"), default="auto", help="Translation backend")
     parser.add_argument("--bilingual", action="store_true", help="Show original and translated text together when supported")
     parser.add_argument("--log-file", default=None, help="Optional transcript log file path")
+    parser.add_argument("--reconnect", action="store_true", help="Automatically restart the live session if Frame disconnects or the stream ends unexpectedly")
+    parser.add_argument("--max-restarts", type=int, default=0, help="Maximum reconnect attempts, 0 means unlimited")
+    parser.add_argument("--restart-delay", type=float, default=2.0, help="Seconds to wait before reconnecting")
     return parser
 
 
@@ -131,7 +134,7 @@ async def run_demo(args) -> None:
         await asyncio.sleep(args.demo_delay)
 
 
-async def run_live(args) -> None:
+async def run_live_once(args) -> None:
     log_file = Path(args.log_file).expanduser() if args.log_file else None
     translator = build_translator(args.translation_provider, args.translate_to)
     whisper_task = "translate" if args.translate_to and args.translation_provider in ("auto", "whisper") and args.translate_to.lower() in ("en", "english") and not args.bilingual else "transcribe"
@@ -206,7 +209,19 @@ async def async_main() -> None:
     if args.demo:
         await run_demo(args)
         return
-    await run_live(args)
+    restart_count = 0
+    while True:
+        try:
+            await run_live_once(args)
+            return
+        except Exception as exc:
+            if not args.reconnect:
+                raise
+            restart_count += 1
+            print(f"[frame-mic] reconnect attempt {restart_count}: {exc!r}")
+            if args.max_restarts and restart_count > args.max_restarts:
+                raise
+            await asyncio.sleep(args.restart_delay)
 
 
 def main() -> None:

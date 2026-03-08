@@ -776,6 +776,12 @@ python examples/frame_mic_live_hud.py --name "Frame 4F" --language en
 
 ```bash
 python examples/frame_mic_live_hud.py --name "Frame 4F" --language zh --render-mode unicode
+
+如果你想让它在偶发断连后自动重连：
+
+```bash
+python examples/frame_mic_live_hud.py --name "Frame EF" --language zh --render-mode unicode --reconnect
+```
 ```
 
 ### 15.3 翻译模式
@@ -1134,6 +1140,12 @@ python examples/frame_mic_codex_bridge.py --demo --dry-run
 
 ```bash
 python examples/frame_mic_codex_bridge.py --name "Frame EF" --language zh --render-mode unicode
+
+如果你想让它在偶发断连后自动重连：
+
+```bash
+python examples/frame_mic_codex_bridge.py --name "Frame EF" --language zh --render-mode unicode --reconnect
+```
 ```
 
 如果你希望 `ask codex ...` 更自动：

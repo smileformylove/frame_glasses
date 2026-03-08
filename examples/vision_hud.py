@@ -9,7 +9,7 @@ from typing import Optional, Sequence
 
 from frame_msg import FrameMsg, RxPhoto, TxCaptureSettings
 
-from frame_utils import FrameDisplay, FrameUnicodeDisplay, compact_text, sleep_briefly
+from frame_utils import FrameDisplay, FrameUnicodeDisplay, compact_text, sleep_briefly, connect_with_retry, initialize_frame
 
 
 CAPTURE_MSG_CODE = 0x0D
@@ -83,11 +83,9 @@ class OpenAIVisionAnalyzer:
         raise RuntimeError("OpenAI vision response returned no text")
 
 
-async def connect_frame_msg(frame: FrameMsg, name: Optional[str]) -> None:
-    await frame.ble.connect(name=name, data_response_handler=frame._handle_data_response)
-    await frame.ble.send_break_signal()
-    await frame.ble.send_reset_signal()
-    await frame.ble.send_break_signal()
+async def connect_frame_msg(frame: FrameMsg, name: Optional[str], verbose: bool = False) -> None:
+    await connect_with_retry(frame.ble, name=name, verbose=verbose, data_response_handler=frame._handle_data_response)
+    await initialize_frame(frame.ble, verbose=verbose)
 
 
 def build_parser() -> argparse.ArgumentParser:
