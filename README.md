@@ -179,6 +179,7 @@ python frame_lab.py doctor
 python frame_lab.py probe -- --name "Frame EF" --send-text "probe"
 python frame_lab.py visual-probe -- --name "Frame EF" --duration 15
 python frame_lab.py frame-mic -- --duration 5
+python frame_lab.py frame-audio-probe -- --name "Frame EF" --duration 4 --transcribe
 python frame_lab.py frame-mic-live -- --demo --dry-run
 python frame_lab.py agent-hud -- serve --dry-run
 python frame_lab.py notify-run -- -- python3 -c "print('tests passed')"
@@ -272,6 +273,19 @@ python examples/vision_hud.py --name "Frame 4F" --source frame --analyzer mock -
 ```bash
 python examples/frame_mic_test.py --name "Frame 4F" --duration 5
 ```
+
+如果你想更明确判断麦克风链路是否正常，可以跑音频探针：
+
+```bash
+python examples/frame_audio_probe.py --name "Frame EF" --duration 4 --transcribe
+```
+
+它会输出：
+
+- 录音文件路径
+- 原始 PCM 时长
+- RMS 音量强度
+- 可选的转写文本
 
 或者使用统一入口：
 
