@@ -13,6 +13,7 @@ from meeting_hud import (
     parse_audio_device,
 )
 from vision_hud import choose_display
+from voice_context import DEFAULT_CONTEXT_PATH, load_last_message, save_last_message
 from voice_shortcuts import DEFAULT_SHORTCUTS_PATH, load_shortcuts
 from voice_codex_core import (
     DEFAULT_COMMANDS,
@@ -61,7 +62,25 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument("--wake-word", default=None, help="Optional wake word such as codex or 眼镜; if set, only commands prefixed with it are acted on")
     parser.add_argument("--confirm-timeout", type=float, default=12.0, help="Seconds before a pending confirmation expires")
     parser.add_argument("--shortcuts-file", default=str(DEFAULT_SHORTCUTS_PATH), help="Path to custom voice shortcuts JSON")
+    parser.add_argument("--context-file", default=str(DEFAULT_CONTEXT_PATH), help="Path to persisted voice result context JSON")
     return parser
+
+
+
+
+def should_persist_result(message: str, should_exit: bool) -> bool:
+    if should_exit or not message:
+        return False
+    blocked_prefixes = (
+        "VOICE CODEX",
+        "语音 Codex",
+        "Confirm ",
+        "确认执行：",
+        "当前没有待确认操作。",
+        "没有可重复的结果。",
+        "还没有可追问的结果。",
+    )
+    return not any(message.startswith(prefix) for prefix in blocked_prefixes)
 
 
 class ResultDisplay:
@@ -126,7 +145,8 @@ async def run_demo(args) -> None:
     shortcuts = load_shortcuts(Path(args.shortcuts_file).expanduser())
     pending_intent = None
     pending_expires_at = 0.0
-    last_message = ""
+    context_file = Path(args.context_file).expanduser()
+    last_message = load_last_message(context_file, "voice-codex") or ""
 
     for command_text in commands:
         print(f"[voice-codex] heard={command_text}")
@@ -148,7 +168,9 @@ async def run_demo(args) -> None:
         if not message:
             continue
         print(f"[voice-codex] result={message}")
-        last_message = message
+        if should_persist_result(message, should_exit):
+            last_message = message
+            save_last_message(context_file, "voice-codex", message)
         if not args.dry_run:
             await display.show(message)
         if should_exit:
@@ -169,7 +191,8 @@ async def run_live(args) -> None:
     shortcuts = load_shortcuts(Path(args.shortcuts_file).expanduser())
     pending_intent = None
     pending_expires_at = 0.0
-    last_message = ""
+    context_file = Path(args.context_file).expanduser()
+    last_message = load_last_message(context_file, "voice-codex") or ""
 
     await display.show("VOICE CODEX ready. Say help, doctor, scan, run tests, ask codex, or exit.")
 
@@ -204,7 +227,9 @@ async def run_live(args) -> None:
         if not message:
             continue
         print(f"[voice-codex] result={message}")
-        last_message = message
+        if should_persist_result(message, should_exit):
+            last_message = message
+            save_last_message(context_file, "voice-codex", message)
         await display.show(message)
         if should_exit:
             break

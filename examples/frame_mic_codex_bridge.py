@@ -11,6 +11,7 @@ from frame_audio_utils import compute_rms, pcm_bytes_to_float32, preprocess_for_
 from frame_mic_live_hud import append_log, choose_demo_lines, send_status_text, upload_runtime
 from meeting_hud import FasterWhisperTranscriber
 from vision_hud import connect_frame_msg
+from voice_context import DEFAULT_CONTEXT_PATH, load_last_message, save_last_message
 from voice_shortcuts import DEFAULT_SHORTCUTS_PATH, load_shortcuts
 from voice_codex_core import (
     DEFAULT_COMMANDS,
@@ -73,7 +74,25 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument("--wake-word", default=None, help="Optional wake word such as codex or 眼镜; if set, only commands prefixed with it are acted on")
     parser.add_argument("--confirm-timeout", type=float, default=12.0, help="Seconds before a pending confirmation expires")
     parser.add_argument("--shortcuts-file", default=str(DEFAULT_SHORTCUTS_PATH), help="Path to custom voice shortcuts JSON")
+    parser.add_argument("--context-file", default=str(DEFAULT_CONTEXT_PATH), help="Path to persisted voice result context JSON")
     return parser
+
+
+
+
+def should_persist_result(message: str, should_exit: bool) -> bool:
+    if should_exit or not message:
+        return False
+    blocked_prefixes = (
+        "VOICE CODEX",
+        "语音 Codex",
+        "Confirm ",
+        "确认执行：",
+        "当前没有待确认操作。",
+        "没有可重复的结果。",
+        "还没有可追问的结果。",
+    )
+    return not any(message.startswith(prefix) for prefix in blocked_prefixes)
 
 
 def preflight_runtime(args) -> None:
@@ -171,7 +190,8 @@ async def run_demo(args) -> None:
     shortcuts = load_shortcuts(Path(args.shortcuts_file).expanduser())
     pending_intent = None
     pending_expires_at = 0.0
-    last_message = ""
+    context_file = Path(args.context_file).expanduser()
+    last_message = load_last_message(context_file, "frame-mic-codex") or ""
     for command_text in commands:
         print(f"[frame-mic-codex] heard={command_text}")
         try:
@@ -192,7 +212,9 @@ async def run_demo(args) -> None:
         if not message:
             continue
         print(f"[frame-mic-codex] result={message}")
-        last_message = message
+        if should_persist_result(message, should_exit):
+            last_message = message
+            save_last_message(context_file, "frame-mic-codex", message)
         await send_status_text(None, message, args, unicode_mode=True)
         if should_exit:
             break
@@ -223,7 +245,8 @@ async def run_live_once(args) -> None:
     shortcuts = load_shortcuts(Path(args.shortcuts_file).expanduser())
     pending_intent = None
     pending_expires_at = 0.0
-    last_message = ""
+    context_file = Path(args.context_file).expanduser()
+    last_message = load_last_message(context_file, "frame-mic-codex") or ""
     rms_gate = AdaptiveRmsGate(args.min_rms, alpha=args.adaptive_alpha, multiplier=args.adaptive_multiplier, bias=args.adaptive_bias) if args.adaptive_rms else None
 
     settings = runtime_settings_summary(args)
@@ -285,7 +308,9 @@ async def run_live_once(args) -> None:
                 if not message:
                     continue
                 print(f"[frame-mic-codex] result={message}")
-                last_message = message
+                if pending_intent is None and not should_exit and action not in ("repeat", "confirm", "cancel", "help", "ignored", "exit"):
+                    last_message = message
+                    save_last_message(context_file, "frame-mic-codex", message)
                 await send_status_text(frame, message, args, unicode_mode)
                 if should_exit:
                     return
