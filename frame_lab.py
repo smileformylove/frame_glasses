@@ -18,6 +18,7 @@ COMMANDS = {
     "voice": "examples/voice_command_hud.py",
     "doctor": "examples/doctor.py",
     "frame-mic": "examples/frame_mic_test.py",
+    "frame-mic-live": "examples/frame_mic_live_hud.py",
 }
 
 DESCRIPTIONS = {
@@ -34,6 +35,7 @@ DESCRIPTIONS = {
     "voice": "Use voice commands to drive vision and memory workflows",
     "doctor": "Check whether the local environment is ready for Frame development",
     "frame-mic": "Record a short WAV clip from the Frame microphone",
+    "frame-mic-live": "Stream and transcribe audio from the Frame microphone",
 }
 
 

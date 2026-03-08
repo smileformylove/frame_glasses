@@ -14,6 +14,7 @@
 - 做 `Memory HUD`，记住场景/物体并在再次看到时回忆备注
 - 做 `Tap Memory HUD`，单击回忆、三击记住、双击退出
 - 做 `Voice Command HUD`，直接说“记住这个”“读一下”“翻译成英文”
+- 做 `Frame Mic Live HUD`，直接用眼镜自带麦克风做实时转写
 
 如果你是第一次开发 Frame，建议先把这套 starter 跑通，再继续做语音字幕、视觉问答、开发者 HUD 等更有趣的功能。
 
@@ -144,6 +145,7 @@ python frame_lab.py tap-memory -- --demo
 python frame_lab.py voice -- --demo
 python frame_lab.py doctor
 python frame_lab.py frame-mic -- --duration 5
+python frame_lab.py frame-mic-live -- --demo --dry-run
 ```
 
 说明：
@@ -685,7 +687,61 @@ python frame_lab.py voice -- --demo --dry-run
 python frame_lab.py voice -- --name "Frame 4F" --analyzer openai --render-mode unicode
 ```
 
-## 15. 这套 starter 适合继续扩展什么
+## 15. Frame Mic Live HUD：用眼镜自带麦克风实时转写
+
+这条链路和 `Meeting HUD` 的区别是：
+
+- `Meeting HUD` 默认用的是 `Mac mini` 本机麦克风
+- `Frame Mic Live HUD` 用的是 **眼镜本体自带麦克风**
+
+### 15.1 先本地预览
+
+```bash
+python examples/frame_mic_live_hud.py --demo --dry-run
+```
+
+### 15.2 真机实时转写
+
+```bash
+python examples/frame_mic_live_hud.py --name "Frame 4F" --language en
+```
+
+如果你主要说中文：
+
+```bash
+python examples/frame_mic_live_hud.py --name "Frame 4F" --language zh --render-mode unicode
+```
+
+### 15.3 翻译模式
+
+直接翻成英文：
+
+```bash
+python examples/frame_mic_live_hud.py --name "Frame 4F" --language zh --translate-to English
+```
+
+翻成中文或其他语言时，推荐 OpenAI：
+
+```bash
+export OPENAI_API_KEY="your_key_here"
+python examples/frame_mic_live_hud.py --name "Frame 4F" --language en --translate-to Chinese --translation-provider openai --render-mode unicode
+```
+
+### 15.4 统一入口
+
+```bash
+python frame_lab.py frame-mic-live -- --demo --dry-run
+python frame_lab.py frame-mic-live -- --name "Frame 4F" --language zh --render-mode unicode
+```
+
+### 15.5 调参建议
+
+- `--window-duration 3.0`：每个转写窗口长度
+- `--overlap-duration 0.5`：窗口重叠，减轻漏词
+- `--min-rms 0.01`：静音阈值
+- `--log-file ./logs/frame_mic_live.txt`：把每条转写落盘
+
+## 16. 这套 starter 适合继续扩展什么
 
 ### 会议字幕
 
@@ -704,7 +760,7 @@ python frame_lab.py voice -- --name "Frame 4F" --analyzer openai --render-mode u
 - Mac mini 做 OCR / VLM 理解
 - 只回传一小段摘要到眼镜
 
-## 16. 常见问题
+## 17. 常见问题
 
 ### 连不上蓝牙
 
@@ -765,6 +821,13 @@ python frame_lab.py voice -- --name "Frame 4F" --analyzer openai --render-mode u
 - 在安静环境下把 `--min-rms` 调低一点，例如 `0.01`
 - 如果你主要说中文，建议加 `--language zh`
 
+### Frame Mic Live HUD 没有字幕
+
+- 先用 `python examples/frame_mic_test.py --name "Frame 4F" --duration 5` 确认眼镜麦克风本身可用
+- 把 `--window-duration` 调长一点，例如 `4.0`
+- 把 `--min-rms` 调低一点，例如 `0.005`
+- 如果你要中文显示，建议加 `--render-mode unicode`
+
 ### Unicode 字幕不显示
 
 - 检查是否使用了 `--render-mode unicode`
@@ -776,7 +839,7 @@ python frame_lab.py voice -- --name "Frame 4F" --analyzer openai --render-mode u
 - 先确保没有别的 Frame 应用占住设备
 - 重新运行脚本，让它自动执行 break/reset/break
 
-## 17. 推荐下一步
+## 18. 推荐下一步
 
 你可以继续沿这条路线做三个 MVP：
 
@@ -784,7 +847,7 @@ python frame_lab.py voice -- --name "Frame 4F" --analyzer openai --render-mode u
 2. `Meeting Translate HUD`：双语会议翻译
 3. `Meeting Speaker HUD`：带说话人标签的会议辅助
 
-## 18. 官方资料
+## 19. 官方资料
 
 - GitHub: <https://github.com/brilliantlabsAR>
 - Frame SDK: <https://docs.brilliant.xyz/frame/frame-sdk/>
