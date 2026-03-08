@@ -10,6 +10,7 @@ from image_quality import analyze_image_bytes, should_retry_capture
 from vision_hud import (
     CAPTURE_MSG_CODE,
     DEFAULT_VISION_PROMPT,
+    adaptive_capture_backoff,
     build_analyzer,
     capture_photo_bytes,
     connect_frame_msg,
@@ -125,7 +126,10 @@ async def capture_photo(frame: FrameMsg, photo_queue: asyncio.Queue, args, image
             last_error = exc
             print(f"[tap-vision] capture retry {attempt} failed: {exc}")
             if attempt <= args.capture_retries:
-                await asyncio.sleep(0.1)
+                if "report" in locals() and report is not None:
+                    await asyncio.sleep(adaptive_capture_backoff(report, attempt))
+                else:
+                    await asyncio.sleep(0.1)
     raise last_error
 
 

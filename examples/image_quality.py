@@ -17,6 +17,16 @@ class ImageQualityReport:
     likely_dark: bool
     likely_overexposed: bool
 
+    @property
+    def primary_issue(self) -> Optional[str]:
+        if self.likely_dark:
+            return 'dark'
+        if self.likely_overexposed:
+            return 'overexposed'
+        if self.likely_blurry:
+            return 'blurry'
+        return None
+
     def summary(self, locale: str = 'en') -> str:
         if locale == 'zh':
             flags = []
@@ -71,4 +81,4 @@ def analyze_image_bytes(image_bytes: bytes) -> ImageQualityReport:
 
 
 def should_retry_capture(report: ImageQualityReport) -> bool:
-    return report.likely_blurry or report.likely_dark or report.likely_overexposed
+    return report.primary_issue is not None

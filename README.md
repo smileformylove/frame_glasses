@@ -602,6 +602,7 @@ python examples/vision_hud.py --source image --image ./captures/example.jpg --an
 - `--warmup-captures 1`：先丢掉一张预热帧，减少首帧条纹/花屏
 - `--capture-retries 2`：如果 JPEG 校验失败就自动重拍
 - `--strict-image-quality`：如果画面看起来模糊、过暗或过曝，就自动重拍
+- 现在重拍会根据问题类型自适应等待，例如模糊时会稍微多等一点再拍
 - `--output-dir ./captures`：保存拍下来的图片
 - `--render-mode unicode`：如果结果是中文，建议打开
 

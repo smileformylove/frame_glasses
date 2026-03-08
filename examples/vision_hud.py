@@ -200,6 +200,15 @@ async def capture_photo_bytes(frame: FrameMsg, photo_queue: asyncio.Queue, args)
     return await asyncio.wait_for(photo_queue.get(), timeout=args.capture_timeout)
 
 
+def adaptive_capture_backoff(report, attempt: int) -> float:
+    issue = getattr(report, 'primary_issue', None)
+    if issue == 'blurry':
+        return 0.25 + attempt * 0.1
+    if issue in ('dark', 'overexposed'):
+        return 0.15 + attempt * 0.05
+    return 0.1
+
+
 async def capture_from_frame(args, output_path: Path) -> Path:
     frame = FrameMsg()
     photo = RxPhoto(upright=True)
@@ -234,7 +243,10 @@ async def capture_from_frame(args, output_path: Path) -> Path:
                 last_error = exc
                 print(f"[vision] capture retry {attempt} failed: {exc}")
                 if attempt <= args.capture_retries:
-                    await asyncio.sleep(0.1)
+                    if "report" in locals() and report is not None:
+                        await asyncio.sleep(adaptive_capture_backoff(report, attempt))
+                    else:
+                        await asyncio.sleep(0.1)
         raise last_error
     finally:
         if queue is not None:
