@@ -2,7 +2,7 @@ PYTHON ?= python3
 VENV_PYTHON := .venv/bin/python
 FRAME_LAB := $(VENV_PYTHON) frame_lab.py
 
-.PHONY: help bootstrap bootstrap-min doctor probe visual-probe live-check scan pair-test say meeting-demo vision-demo tap-vision-demo memory-demo tap-memory-demo voice-demo voice-codex-demo frame-mic-test frame-audio-probe frame-mic-live-demo frame-mic-codex-demo agent-hud-serve agent-hud-demo
+.PHONY: help bootstrap bootstrap-min doctor probe visual-probe live-check scan pair-test say meeting-demo vision-demo tap-vision-demo memory-demo tap-memory-demo voice-demo voice-codex-demo frame-mic-test frame-audio-probe frame-audio-calibrate frame-mic-live-demo frame-mic-codex-demo agent-hud-serve agent-hud-demo
 
 help:
 	@echo "Available targets:"
@@ -25,6 +25,7 @@ help:
 	@echo "  frame-mic-codex-demo Frame Mic Codex Bridge dry-run flow"
 	@echo "  frame-mic-test      Dry-run Frame microphone test"
 	@echo "  frame-audio-probe   Probe Frame microphone RMS/transcript"
+	@echo "  frame-audio-calibrate Calibrate Frame microphone thresholds"
 	@echo "  frame-mic-live-demo Frame microphone live transcript dry-run demo"
 	@echo "  agent-hud-serve     Start Agent HUD in dry-run mode"
 	@echo "  agent-hud-demo      Send sample notifications to a running Agent HUD"
@@ -86,6 +87,9 @@ frame-mic-test:
 
 frame-audio-probe:
 	$(FRAME_LAB) frame-audio-probe -- --name "Frame EF" --duration 4 --transcribe
+
+frame-audio-calibrate:
+	$(FRAME_LAB) frame-audio-calibrate -- --name "Frame EF" --duration 6 --transcribe-preview
 
 frame-mic-live-demo:
 	$(FRAME_LAB) frame-mic-live -- --demo --dry-run
