@@ -1265,8 +1265,9 @@ python examples/frame_mic_codex_bridge.py --name "Frame EF" --language zh --visu
 
 - `--render-mode unicode`
 - `--announce-high-priority`
-- `--page-results`
+- `--card-results`
 - 更大的字体和更少的行数
+- 更适合 history / 最近任务 的卡片轮播
 
 
 如果你还想让 Mac mini 直接语音播报结果：

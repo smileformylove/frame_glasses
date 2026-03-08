@@ -73,6 +73,9 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument("--page-results", action="store_true", help="Split long results into multiple pages on the glasses")
     parser.add_argument("--page-max-chars", type=int, default=90, help="Maximum characters per page when paginating results")
     parser.add_argument("--page-delay", type=float, default=1.2, help="Seconds to wait between result pages")
+    parser.add_argument("--card-results", action="store_true", help="Render multi-item outputs as card carousel pages")
+    parser.add_argument("--card-max-chars", type=int, default=56, help="Maximum characters per card when card mode is enabled")
+    parser.add_argument("--card-delay", type=float, default=1.6, help="Seconds to wait between cards")
     parser.add_argument("--announce-high-priority", action="store_true", help="Show important results in larger text on the glasses")
     parser.add_argument("--speak-results", action="store_true", help="Speak results aloud using macOS say on the Mac mini")
     parser.add_argument("--speak-policy", choices=("off", "important", "all"), default="off", help="Speech policy for macOS say: off, only important results, or all results")
@@ -123,7 +126,10 @@ def apply_visual_broadcast_preset(args) -> None:
         return
     args.render_mode = 'unicode'
     args.announce_high_priority = True
-    args.page_results = True
+    args.card_results = True
+    args.page_results = False
+    args.card_max_chars = min(getattr(args, 'card_max_chars', 56), 44)
+    args.card_delay = max(getattr(args, 'card_delay', 1.6), 1.6)
     args.page_max_chars = min(getattr(args, 'page_max_chars', 90), 28)
     args.page_delay = max(getattr(args, 'page_delay', 1.2), 1.4)
     args.font_size = max(getattr(args, 'font_size', 28), 40)
@@ -194,12 +200,13 @@ async def resolve_voice_intent(args, raw_text: str, pending_intent, pending_raw_
     return message, should_exit, pending_intent, confirmed_raw_text if confirmed else pending_raw_text, pending_expires_at, intent.action
 
 
-def iter_result_pages(args, message: str):
-    if not args.page_results:
-        return [message]
-    if len(message) <= args.page_max_chars and ' | ' not in message and ' ｜ ' not in message and '\n' not in message:
-        return [message]
-    return paginate_text(message, max_chars=args.page_max_chars, include_index=True)
+def iter_result_segments(args, message: str):
+    if getattr(args, 'card_results', False):
+        return cardify_text(message, max_chars=args.card_max_chars, include_index=True), args.card_delay
+    if getattr(args, 'page_results', False):
+        return paginate_text(message, max_chars=args.page_max_chars, include_index=True), args.page_delay
+    return [message], 0.0
+
 
 def compact_for_args(args, text: str) -> str:
     return compact_text(text, args.limit)
@@ -244,11 +251,11 @@ async def run_demo(args) -> None:
             if pending_intent is None:
                 pending_raw_text = ""
         if not args.dry_run:
-            pages = iter_result_pages(args, message)
+            pages, page_delay = iter_result_segments(args, message)
             for idx, page in enumerate(pages):
                 await display.show(page, priority="high" if should_exit or ("CODEX" in page) or ("测试" in page) else "normal")
                 if idx < len(pages) - 1:
-                    await asyncio.sleep(args.page_delay)
+                    await asyncio.sleep(page_delay)
         await maybe_speak_result(args, message, should_exit=should_exit)
         if should_exit:
             break
@@ -309,11 +316,11 @@ async def run_live(args) -> None:
             last_message = message
             save_last_message(context_file, "voice-codex", message)
             append_history(Path(args.history_file).expanduser(), {"bridge": "voice-codex", "heard": text, "action": effective_action, "result": message})
-        pages = iter_result_pages(args, message)
+        pages, page_delay = iter_result_segments(args, message)
         for idx, page in enumerate(pages):
             await display.show(page, priority="high" if should_exit or ("CODEX" in page) or ("测试" in page) else "normal")
             if idx < len(pages) - 1:
-                await asyncio.sleep(args.page_delay)
+                await asyncio.sleep(page_delay)
         if should_exit:
             break
 

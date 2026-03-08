@@ -280,6 +280,48 @@ def paginate_text(text: str, max_chars: int = 120, include_index: bool = True):
         total = len(pages)
         return [f"[{index + 1}/{total}] {page}" for index, page in enumerate(pages)]
     return pages
+
+
+def cardify_text(text: str, max_chars: int = 56, include_index: bool = True):
+    raw = text.strip()
+    if not raw:
+        return [raw]
+
+    separators = [' ｜ ', ' | ', '\n']
+    units = [raw]
+    for sep in separators:
+        next_units = []
+        for unit in units:
+            if sep in unit:
+                next_units.extend(part.strip() for part in unit.split(sep) if part.strip())
+            else:
+                next_units.append(unit)
+        units = next_units
+
+    cards = []
+    for unit in units:
+        if '：' in unit:
+            title, body = unit.split('：', 1)
+            card = f"{title}：\n{body.strip()}"
+        elif ':' in unit and len(unit.split(':', 1)[0]) <= 18:
+            title, body = unit.split(':', 1)
+            card = f"{title}:\n{body.strip()}"
+        else:
+            card = unit
+
+        if len(card) <= max_chars:
+            cards.append(card)
+        else:
+            start = 0
+            while start < len(card):
+                cards.append(card[start:start + max_chars])
+                start += max_chars
+
+    if include_index and len(cards) > 1:
+        total = len(cards)
+        return [f"[{index + 1}/{total}] {card}" for index, card in enumerate(cards)]
+    return cards
+
 def resolve_unicode_font(font_family: Optional[str] = None) -> Optional[str]:
     if font_family:
         expanded = Path(font_family).expanduser()
