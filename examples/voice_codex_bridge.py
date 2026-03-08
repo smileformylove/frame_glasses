@@ -116,6 +116,7 @@ async def run_demo(args) -> None:
     commands = [part.strip() for part in args.demo_commands.split("|") if part.strip()]
     pending_intent = None
     pending_expires_at = 0.0
+    last_message = ""
 
     for command_text in commands:
         print(f"[voice-codex] heard={command_text}")
@@ -125,9 +126,12 @@ async def run_demo(args) -> None:
             )
         except Exception as exc:
             message, should_exit = f"VOICE CODEX error: {exc}", False
+        if parse_intent(command_text, wake_word=args.wake_word).action == "repeat":
+            message = last_message or ("VOICE CODEX nothing to repeat." if locale_for_args(args) == "en" else "没有可重复的结果。")
         if not message:
             continue
         print(f"[voice-codex] result={message}")
+        last_message = message
         if not args.dry_run:
             await display.show(message)
         if should_exit:
@@ -147,6 +151,7 @@ async def run_live(args) -> None:
     display = ResultDisplay(args)
     pending_intent = None
     pending_expires_at = 0.0
+    last_message = ""
 
     await display.show("VOICE CODEX ready. Say help, doctor, scan, run tests, ask codex, or exit.")
 
@@ -169,9 +174,12 @@ async def run_live(args) -> None:
             )
         except Exception as exc:
             message, should_exit = f"VOICE CODEX error: {exc}", False
+        if parse_intent(text, wake_word=args.wake_word).action == "repeat":
+            message = last_message or ("VOICE CODEX nothing to repeat." if locale_for_args(args) == "en" else "没有可重复的结果。")
         if not message:
             continue
         print(f"[voice-codex] result={message}")
+        last_message = message
         await display.show(message)
         if should_exit:
             break
