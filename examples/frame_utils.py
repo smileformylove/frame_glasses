@@ -16,6 +16,39 @@ DEFAULT_MAC_UNICODE_FONTS = [
 UNICODE_TEXT_MSG_CODE = 0x20
 
 
+async def connect_with_retry(frame: FrameBle, name: Optional[str] = None, attempts: int = 3, delay: float = 1.0, verbose: bool = False, **connect_kwargs):
+    last_exc = None
+    for attempt in range(1, attempts + 1):
+        try:
+            if verbose:
+                label = name or 'first available Frame'
+                print(f"[frame] connect attempt {attempt}/{attempts} -> {label}")
+            address = await frame.connect(name=name, **connect_kwargs)
+            if verbose:
+                print(f"[frame] connect succeeded -> {address}")
+            return address
+        except Exception as exc:
+            last_exc = exc
+            if verbose:
+                print(f"[frame] connect failed on attempt {attempt}: {exc!r}")
+            if attempt < attempts:
+                await asyncio.sleep(delay)
+    raise last_exc
+
+
+async def initialize_frame(frame: FrameBle, reset: bool = True, verbose: bool = False) -> None:
+    if verbose:
+        print("[frame] sending break signal")
+    await frame.send_break_signal()
+    if reset:
+        if verbose:
+            print("[frame] sending reset signal")
+        await frame.send_reset_signal()
+        if verbose:
+            print("[frame] sending final break signal")
+        await frame.send_break_signal()
+
+
 class FrameDisplay:
     def __init__(self, name: Optional[str] = None, dry_run: bool = False, verbose: bool = False):
         self.name = name
@@ -33,13 +66,11 @@ class FrameDisplay:
             label = self.name or "first available Frame"
             print(f"[frame] connecting to {label} ...")
         self.frame = FrameBle()
-        address = await self.frame.connect(name=self.name)
+        address = await connect_with_retry(self.frame, name=self.name, verbose=self.verbose)
         if self.verbose:
             print(f"[frame] connected to {address}")
-            print("[frame] sending break/reset/break ...")
-        await self.frame.send_break_signal()
-        await self.frame.send_reset_signal()
-        await self.frame.send_break_signal()
+            print("[frame] initializing Frame ...")
+        await initialize_frame(self.frame, verbose=self.verbose)
         if self.verbose:
             print("[frame] Frame ready")
 
@@ -102,12 +133,10 @@ class FrameUnicodeDisplay:
             label = self.name or "first available Frame"
             print(f"[frame-unicode] connecting to {label} ...")
         self.frame = FrameBle()
-        address = await self.frame.connect(name=self.name)
+        address = await connect_with_retry(self.frame, name=self.name, verbose=self.verbose)
         if self.verbose:
             print(f"[frame-unicode] connected to {address}")
-        await self.frame.send_break_signal()
-        await self.frame.send_reset_signal()
-        await self.frame.send_break_signal()
+        await initialize_frame(self.frame, verbose=self.verbose)
         if self.verbose:
             print("[frame-unicode] uploading unicode runtime ...")
         await self._upload_unicode_runtime()

@@ -208,6 +208,18 @@ python3 frame_lab.py probe -- --name "Frame EF" --send-text "probe"
 - `break/reset/break` 是否成功
 - `send_lua` 是否真正发到了眼镜
 
+如果你想一条命令串跑关键真机链路：
+
+```bash
+./scripts/live_connectivity_check.sh --name "Frame EF" --text "probe" --mic-duration 3
+```
+
+这会依次执行：
+
+- `probe`
+- 真实发字
+- 眼镜麦克风录音测试
+
 如果你想先检查本机环境是否适合开发：
 
 ```bash

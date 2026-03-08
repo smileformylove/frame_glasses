@@ -2,13 +2,15 @@ PYTHON ?= python3
 VENV_PYTHON := .venv/bin/python
 FRAME_LAB := $(VENV_PYTHON) frame_lab.py
 
-.PHONY: help bootstrap bootstrap-min doctor scan pair-test say meeting-demo vision-demo tap-vision-demo memory-demo tap-memory-demo voice-demo voice-codex-demo frame-mic-test frame-mic-live-demo frame-mic-codex-demo agent-hud-serve agent-hud-demo
+.PHONY: help bootstrap bootstrap-min doctor probe live-check scan pair-test say meeting-demo vision-demo tap-vision-demo memory-demo tap-memory-demo voice-demo voice-codex-demo frame-mic-test frame-mic-live-demo frame-mic-codex-demo agent-hud-serve agent-hud-demo
 
 help:
 	@echo "Available targets:"
 	@echo "  bootstrap           Full macOS setup"
 	@echo "  bootstrap-min       Minimal setup"
 	@echo "  doctor              Check local environment"
+	@echo "  probe               Run the step-by-step Frame connectivity probe"
+	@echo "  live-check          Run probe + send text + Frame mic test"
 	@echo "  scan                Scan nearby Frame devices"
 	@echo "  pair-test           Find nearest Frame and send a test line"
 	@echo "  say                 Dry-run send text demo"
@@ -33,6 +35,12 @@ bootstrap-min:
 
 doctor:
 	$(FRAME_LAB) doctor
+
+probe:
+	./scripts/run_frame_lab.sh probe -- --name "Frame EF" --send-text "probe"
+
+live-check:
+	./scripts/live_connectivity_check.sh --name "Frame EF" --text "probe" --mic-duration 3
 
 scan:
 	$(FRAME_LAB) scan

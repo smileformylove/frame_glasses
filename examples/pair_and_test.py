@@ -5,7 +5,7 @@ from typing import Optional
 from bleak import BleakScanner
 from frame_ble import FrameBle
 
-from frame_utils import lua_escape
+from frame_utils import connect_with_retry, initialize_frame, lua_escape
 
 
 def build_parser() -> argparse.ArgumentParser:
@@ -54,7 +54,7 @@ async def send_text(name: str, text: str, x: int, y: int, verbose: bool = False)
     frame = FrameBle()
     if verbose:
         print(f"[pair-test] connecting to {name} ...")
-    address = await frame.connect(name=name)
+    address = await connect_with_retry(frame, name=name, verbose=verbose)
     if verbose:
         print(f"[pair-test] connected to {address}")
     try:

@@ -10,7 +10,7 @@ from typing import Optional
 from bleak import BleakScanner
 from frame_ble import FrameBle
 
-from frame_utils import lua_escape
+from frame_utils import connect_with_retry, initialize_frame, lua_escape
 
 
 def build_parser() -> argparse.ArgumentParser:
@@ -73,14 +73,12 @@ async def run_probe(args) -> int:
     frame = FrameBle()
     try:
         print(f"[probe] connecting to {frame_name} ...")
-        address = await frame.connect(name=frame_name)
+        address = await connect_with_retry(frame, name=frame_name, attempts=3, delay=1.0, verbose=True)
         print(f"[probe] connected address={address}")
         print(f"[probe] max_lua_payload={frame.max_lua_payload()} max_data_payload={frame.max_data_payload()}")
 
-        print("[probe] sending break/reset/break ...")
-        await frame.send_break_signal()
-        await frame.send_reset_signal()
-        await frame.send_break_signal()
+        print("[probe] initializing Frame ...")
+        await initialize_frame(frame, verbose=True)
         print("[probe] frame ready")
 
         if args.send_text:
