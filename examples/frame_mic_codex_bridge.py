@@ -15,8 +15,9 @@ from speech_output import maybe_speak_result
 from vision_hud import connect_frame_msg
 from voice_cards import DEFAULT_CARD_STATE_PATH, set_cards, update_current_index
 from voice_context import DEFAULT_CONTEXT_PATH, load_last_message, save_last_message
-from voice_task_state import DEFAULT_TASK_STATE_PATH, get_current_task
+from voice_task_state import DEFAULT_TASK_STATE_PATH
 from voice_history import DEFAULT_HISTORY_PATH, append_history
+from startup_dashboard import build_startup_messages
 from voice_shortcuts import DEFAULT_SHORTCUTS_PATH, load_shortcuts
 from weather_profile import DEFAULT_WEATHER_PROFILE_PATH, load_weather_profile
 from voice_codex_core import (
@@ -90,6 +91,7 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument("--card-max-chars", type=int, default=56, help="Maximum characters per card when card mode is enabled")
     parser.add_argument("--card-delay", type=float, default=1.6, help="Seconds to wait between cards")
     parser.add_argument("--startup-delay", type=float, default=1.5, help="Seconds to keep each startup screen visible")
+    parser.add_argument("--startup-settle-delay", type=float, default=0.35, help="Seconds to wait after the Frame mic runtime starts before sending startup cards")
     parser.add_argument("--announce-high-priority", action="store_true", help="Show important results in larger text on the glasses")
     parser.add_argument("--speak-results", action="store_true", help="Speak results aloud using macOS say on the Mac mini")
     parser.add_argument("--speak-policy", choices=("off", "important", "all"), default="off", help="Speech policy for macOS say: off, only important results, or all results")
@@ -182,12 +184,19 @@ def runtime_settings_summary(args) -> str:
     adaptive = 'on' if getattr(args, 'adaptive_rms', False) else 'off'
     return f"min_rms={args.min_rms:.4f} trim={args.trim_leading:.2f} adaptive={adaptive}"
 
-def startup_status_messages(args, settings: str):
-    messages = [f"VOICE CODEX ready. Say help, doctor, run tests, ask codex, or exit.\n{settings}"]
-    task = get_current_task(Path(args.task_state_file).expanduser())
-    if task:
-        messages.append(f"当前任务：{task.get('title', '')}")
-    return messages
+def startup_dashboard_cards(args, settings: str):
+    locale = locale_for_args(args)
+    messages, preferred_message_index = build_startup_messages(args, settings=settings, locale=locale)
+    cards = []
+    preferred_card_index = 0
+    for message_index, message in enumerate(messages):
+        pages, _ = iter_result_segments(args, message)
+        if message_index == preferred_message_index:
+            preferred_card_index = len(cards)
+        cards.extend(pages)
+    if not cards:
+        cards = messages
+    return cards, preferred_card_index
 
 def should_retry_exception(exc: Exception) -> bool:
     return not isinstance(exc, (ModuleNotFoundError, RuntimeError, ValueError))
@@ -336,19 +345,17 @@ async def run_live_once(args) -> None:
     try:
         queue = await audio.attach(frame)
         await upload_runtime(frame)
-        startup_messages = startup_status_messages(args, settings)
-        final_pages = None
-        for message in startup_messages:
-            pages, page_delay = iter_result_segments(args, message)
-            final_pages = pages
-            set_cards(Path(args.card_state_file).expanduser(), args.card_state_key, pages, current_index=0)
-            for idx, page in enumerate(pages):
-                update_current_index(Path(args.card_state_file).expanduser(), args.card_state_key, idx)
-                await send_status_text(frame, page, args, unicode_mode)
-                await asyncio.sleep(args.startup_delay if idx == len(pages) - 1 else page_delay)
-        if final_pages:
-            set_cards(Path(args.card_state_file).expanduser(), args.card_state_key, final_pages, current_index=0)
-            await send_status_text(frame, final_pages[0], args, unicode_mode)
+        await asyncio.sleep(args.startup_settle_delay)
+        startup_cards, preferred_card_index = startup_dashboard_cards(args, settings)
+        set_cards(Path(args.card_state_file).expanduser(), args.card_state_key, startup_cards, current_index=preferred_card_index)
+        for idx, card in enumerate(startup_cards):
+            update_current_index(Path(args.card_state_file).expanduser(), args.card_state_key, idx)
+            await send_status_text(frame, card, args, unicode_mode)
+            if idx < len(startup_cards) - 1:
+                await asyncio.sleep(args.startup_delay)
+        if startup_cards:
+            set_cards(Path(args.card_state_file).expanduser(), args.card_state_key, startup_cards, current_index=preferred_card_index)
+            await send_status_text(frame, startup_cards[preferred_card_index], args, unicode_mode)
 
         while True:
             chunk = await queue.get()

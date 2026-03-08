@@ -42,7 +42,6 @@ data.parsers[PLAIN_TEXT_MSG_CODE] = parse_plain_text
 data.parsers[UNICODE_TEXT_MSG_CODE] = text_sprite_block.parse_text_sprite_block
 
 audio.start()
-render_plain_text('frame mic live ready')
 print('frame_stream_mic_ready')
 
 while true do
