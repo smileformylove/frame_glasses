@@ -1369,12 +1369,14 @@ python frame_lab.py voice-shortcuts -- list
 - `start task ...` / `开始任务 ...`
 - `current task` / `当前任务`
 - `continue task` / `继续任务`
+- `recent tasks` / `最近任务`
+- `previous task` / `上一个任务`
 - `clear task` / `清除任务`
 
 例如：
 
 ```bash
-python examples/voice_codex_bridge.py --demo --dry-run --language zh --demo-commands "开始任务 修复 Frame BLE 断连|当前任务|继续任务|清除任务|exit"
+python examples/voice_codex_bridge.py --demo --dry-run --language zh --demo-commands "开始任务 修复 Frame BLE 断连|开始任务 优化语音识别|最近任务|上一个任务|当前任务|清除任务|exit"
 ```
 
 这份当前任务会持久化到 `profiles/voice_task_state.json`。
