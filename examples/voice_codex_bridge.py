@@ -3,7 +3,7 @@ import asyncio
 from pathlib import Path
 import time
 
-from frame_utils import FrameUnicodeDisplay, compact_text
+from frame_utils import FrameUnicodeDisplay, compact_text, display_kwargs_for_priority
 from meeting_hud import (
     FasterWhisperTranscriber,
     capture_audio_chunk,
@@ -69,6 +69,7 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument("--demo-commands", default=DEFAULT_COMMANDS, help="Pipe-separated command phrases used in demo mode")
     parser.add_argument("--wake-word", default=None, help="Optional wake word such as codex or 眼镜; if set, only commands prefixed with it are acted on")
     parser.add_argument("--confirm-timeout", type=float, default=12.0, help="Seconds before a pending confirmation expires")
+    parser.add_argument("--announce-high-priority", action="store_true", help="Show important results in larger text on the glasses")
     parser.add_argument("--speak-results", action="store_true", help="Speak results aloud using macOS say on the Mac mini")
     parser.add_argument("--say-voice", default=None, help="Optional macOS voice name used by say")
     parser.add_argument("--say-rate", type=int, default=None, help="Optional speech rate for macOS say")
@@ -114,8 +115,15 @@ class ResultDisplay:
     def __init__(self, args):
         self.args = args
 
-    async def show(self, text: str) -> None:
-        display = choose_display(self.args, text)
+    async def show(self, text: str, priority: str = "normal") -> None:
+        if self.args.announce_high_priority and priority == "high":
+            overrides = display_kwargs_for_priority("high", self.args.font_size, self.args.display_width, self.args.max_rows)
+            original = (self.args.font_size, self.args.display_width, self.args.max_rows)
+            self.args.font_size, self.args.display_width, self.args.max_rows = overrides["font_size"], overrides["display_width"], overrides["max_rows"]
+            display = choose_display(self.args, text)
+            self.args.font_size, self.args.display_width, self.args.max_rows = original
+        else:
+            display = choose_display(self.args, text)
         rendered = text if isinstance(display, FrameUnicodeDisplay) else compact_text(text, self.args.limit)
         await display.connect()
         try:
@@ -209,7 +217,7 @@ async def run_demo(args) -> None:
             if pending_intent is None:
                 pending_raw_text = ""
         if not args.dry_run:
-            await display.show(message)
+            await display.show(message, priority="high" if should_exit or ("CODEX" in message) or ("测试" in message) else "normal")
         await speak_text(message, enabled=args.speak_results, voice=args.say_voice, rate=args.say_rate)
         await speak_text(message, enabled=args.speak_results, voice=args.say_voice, rate=args.say_rate)
         if should_exit:
@@ -271,7 +279,7 @@ async def run_live(args) -> None:
             last_message = message
             save_last_message(context_file, "voice-codex", message)
             append_history(Path(args.history_file).expanduser(), {"bridge": "voice-codex", "heard": text, "action": effective_action, "result": message})
-        await display.show(message)
+        await display.show(message, priority="high" if should_exit or ("CODEX" in message) or ("测试" in message) else "normal")
         if should_exit:
             break
 

@@ -8,6 +8,7 @@ from frame_msg import FrameMsg, RxAudio
 from frame_audio_gate import AdaptiveRmsGate
 from frame_audio_profile import DEFAULT_PROFILE_PATH, load_profile
 from frame_audio_utils import compute_rms, pcm_bytes_to_float32, preprocess_for_whisper
+from frame_utils import display_kwargs_for_priority
 from frame_mic_live_hud import append_log, choose_demo_lines, send_status_text, upload_runtime
 from meeting_hud import FasterWhisperTranscriber
 from speech_output import speak_text
@@ -80,6 +81,7 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument("--demo-commands", default=DEFAULT_DEMO_COMMANDS, help="Pipe-separated command phrases used in demo mode")
     parser.add_argument("--wake-word", default=None, help="Optional wake word such as codex or 眼镜; if set, only commands prefixed with it are acted on")
     parser.add_argument("--confirm-timeout", type=float, default=12.0, help="Seconds before a pending confirmation expires")
+    parser.add_argument("--announce-high-priority", action="store_true", help="Show important results in larger text on the glasses")
     parser.add_argument("--speak-results", action="store_true", help="Speak results aloud using macOS say on the Mac mini")
     parser.add_argument("--say-voice", default=None, help="Optional macOS voice name used by say")
     parser.add_argument("--say-rate", type=int, default=None, help="Optional speech rate for macOS say")
@@ -338,7 +340,14 @@ async def run_live_once(args) -> None:
                     history_heard = pending_raw_text or heard
                     append_history(Path(args.history_file).expanduser(), {"bridge": "frame-mic-codex", "heard": history_heard, "action": effective_action, "result": message})
                     pending_raw_text = ""
-                await send_status_text(frame, message, args, unicode_mode)
+                if args.announce_high_priority and (should_exit or ("CODEX" in message) or ("测试" in message)):
+                    original = (args.font_size, args.display_width, args.max_rows)
+                    overrides = display_kwargs_for_priority("high", args.font_size, args.display_width, args.max_rows)
+                    args.font_size, args.display_width, args.max_rows = overrides["font_size"], overrides["display_width"], overrides["max_rows"]
+                    await send_status_text(frame, message, args, unicode_mode)
+                    args.font_size, args.display_width, args.max_rows = original
+                else:
+                    await send_status_text(frame, message, args, unicode_mode)
                 await speak_text(message, enabled=args.speak_results, voice=args.say_voice, rate=args.say_rate)
                 if should_exit:
                     return

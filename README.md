@@ -1249,6 +1249,12 @@ python examples/frame_mic_codex_bridge.py --name "Frame EF" --language zh --rend
 python examples/frame_mic_codex_bridge.py --name "Frame EF" --language zh --render-mode unicode --codex-full-auto --codex-ephemeral
 ```
 
+如果你想让眼镜上的结果更像“视觉播报”，可以打开大字高优先级模式：
+
+```bash
+python examples/frame_mic_codex_bridge.py --name "Frame EF" --language zh --render-mode unicode --announce-high-priority
+```
+
 如果你还想让 Mac mini 直接语音播报结果：
 
 ```bash

@@ -214,6 +214,21 @@ def compact_text(text: str, limit: int) -> str:
     return compact[: max(0, limit - 1)] + "…"
 
 
+
+
+def display_kwargs_for_priority(priority: str, font_size: int, display_width: int, max_rows: int):
+    if priority == 'high':
+        return {
+            'font_size': max(font_size, 40),
+            'display_width': min(display_width, 520),
+            'max_rows': min(max_rows, 2),
+        }
+    return {
+        'font_size': font_size,
+        'display_width': display_width,
+        'max_rows': max_rows,
+    }
+
 def resolve_unicode_font(font_family: Optional[str] = None) -> Optional[str]:
     if font_family:
         expanded = Path(font_family).expanduser()
