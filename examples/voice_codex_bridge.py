@@ -14,6 +14,7 @@ from meeting_hud import (
 )
 from vision_hud import choose_display
 from voice_context import DEFAULT_CONTEXT_PATH, load_last_message, save_last_message
+from voice_history import DEFAULT_HISTORY_PATH, append_history
 from voice_shortcuts import DEFAULT_SHORTCUTS_PATH, load_shortcuts
 from voice_codex_core import (
     DEFAULT_COMMANDS,
@@ -63,6 +64,7 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument("--confirm-timeout", type=float, default=12.0, help="Seconds before a pending confirmation expires")
     parser.add_argument("--shortcuts-file", default=str(DEFAULT_SHORTCUTS_PATH), help="Path to custom voice shortcuts JSON")
     parser.add_argument("--context-file", default=str(DEFAULT_CONTEXT_PATH), help="Path to persisted voice result context JSON")
+    parser.add_argument("--history-file", default=str(DEFAULT_HISTORY_PATH), help="Path to persisted voice history JSON")
     return parser
 
 
@@ -97,16 +99,18 @@ class ResultDisplay:
             await display.disconnect()
 
 
-async def resolve_voice_intent(args, raw_text: str, pending_intent, pending_expires_at: float):
+async def resolve_voice_intent(args, raw_text: str, pending_intent, pending_raw_text: str, pending_expires_at: float):
     locale = locale_for_args(args)
     shortcuts = load_shortcuts(Path(args.shortcuts_file).expanduser())
     intent = parse_intent(raw_text, wake_word=args.wake_word, shortcuts=shortcuts)
     confirmed = False
+    confirmed_raw_text = raw_text
 
     if pending_intent is not None and time.monotonic() > pending_expires_at:
         if intent.action in ("confirm", "cancel"):
-            return expired_message(locale), False, None, 0.0
+            return expired_message(locale), False, None, "", 0.0, "expired"
         pending_intent = None
+        pending_raw_text = ""
         pending_expires_at = 0.0
 
     if pending_intent is not None and intent.action == "ignored":
@@ -115,23 +119,26 @@ async def resolve_voice_intent(args, raw_text: str, pending_intent, pending_expi
     if pending_intent is not None:
         if intent.action == "confirm":
             intent = pending_intent
+            confirmed_raw_text = pending_raw_text or raw_text
             pending_intent = None
+            pending_raw_text = ""
             pending_expires_at = 0.0
             confirmed = True
         elif intent.action == "cancel":
-            return canceled_message(locale), False, None, 0.0
+            return canceled_message(locale), False, None, "", 0.0, "cancel"
         else:
             pending_intent = None
+            pending_raw_text = ""
             pending_expires_at = 0.0
 
     if requires_confirmation(intent) and not confirmed:
-        return confirmation_prompt(intent, locale), False, intent, time.monotonic() + args.confirm_timeout
+        return confirmation_prompt(intent, locale), False, intent, raw_text, time.monotonic() + args.confirm_timeout, intent.action
 
     progress = progress_message(intent, locale) if requires_confirmation(intent) and confirmed else ""
     message, should_exit = await execute_intent(args, intent)
     if progress and not args.dry_run:
         await ResultDisplay(args).show(progress)
-    return message, should_exit, pending_intent, pending_expires_at
+    return message, should_exit, pending_intent, confirmed_raw_text if confirmed else pending_raw_text, pending_expires_at, intent.action
 
 
 def compact_for_args(args, text: str) -> str:
@@ -144,6 +151,7 @@ async def run_demo(args) -> None:
     commands = [part.strip() for part in args.demo_commands.split("|") if part.strip()]
     shortcuts = load_shortcuts(Path(args.shortcuts_file).expanduser())
     pending_intent = None
+    pending_raw_text = ""
     pending_expires_at = 0.0
     context_file = Path(args.context_file).expanduser()
     last_message = load_last_message(context_file, "voice-codex") or ""
@@ -151,11 +159,11 @@ async def run_demo(args) -> None:
     for command_text in commands:
         print(f"[voice-codex] heard={command_text}")
         try:
-            message, should_exit, pending_intent, pending_expires_at = await resolve_voice_intent(
-                args, command_text, pending_intent, pending_expires_at
+            message, should_exit, pending_intent, pending_raw_text, pending_expires_at, effective_action = await resolve_voice_intent(
+                args, command_text, pending_intent, pending_raw_text, pending_expires_at
             )
         except Exception as exc:
-            message, should_exit = f"VOICE CODEX error: {exc}", False
+            message, should_exit, effective_action = f"VOICE CODEX error: {exc}", False, "error"
         action = parse_intent(command_text, wake_word=args.wake_word, shortcuts=shortcuts).action
         if action == "repeat":
             message = last_message or ("VOICE CODEX nothing to repeat." if locale_for_args(args) == "en" else "没有可重复的结果。")
@@ -171,6 +179,10 @@ async def run_demo(args) -> None:
         if should_persist_result(message, should_exit):
             last_message = message
             save_last_message(context_file, "voice-codex", message)
+            history_heard = pending_raw_text or command_text
+            append_history(Path(args.history_file).expanduser(), {"bridge": "voice-codex", "heard": history_heard, "action": effective_action, "result": message})
+            if pending_intent is None:
+                pending_raw_text = ""
         if not args.dry_run:
             await display.show(message)
         if should_exit:
@@ -190,6 +202,7 @@ async def run_live(args) -> None:
     display = ResultDisplay(args)
     shortcuts = load_shortcuts(Path(args.shortcuts_file).expanduser())
     pending_intent = None
+    pending_raw_text = ""
     pending_expires_at = 0.0
     context_file = Path(args.context_file).expanduser()
     last_message = load_last_message(context_file, "voice-codex") or ""
@@ -210,11 +223,11 @@ async def run_live(args) -> None:
 
         print(f"[voice-codex] heard={text}")
         try:
-            message, should_exit, pending_intent, pending_expires_at = await resolve_voice_intent(
-                args, text, pending_intent, pending_expires_at
+            message, should_exit, pending_intent, pending_raw_text, pending_expires_at, effective_action = await resolve_voice_intent(
+                args, text, pending_intent, pending_raw_text, pending_expires_at
             )
         except Exception as exc:
-            message, should_exit = f"VOICE CODEX error: {exc}", False
+            message, should_exit, effective_action = f"VOICE CODEX error: {exc}", False, "error"
         action = parse_intent(text, wake_word=args.wake_word, shortcuts=shortcuts).action
         if action == "repeat":
             message = last_message or ("VOICE CODEX nothing to repeat." if locale_for_args(args) == "en" else "没有可重复的结果。")
@@ -230,6 +243,7 @@ async def run_live(args) -> None:
         if should_persist_result(message, should_exit):
             last_message = message
             save_last_message(context_file, "voice-codex", message)
+            append_history(Path(args.history_file).expanduser(), {"bridge": "voice-codex", "heard": text, "action": effective_action, "result": message})
         await display.show(message)
         if should_exit:
             break

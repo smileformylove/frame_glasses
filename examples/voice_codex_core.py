@@ -16,9 +16,10 @@ from command_summary import (
     summarize_scan_output,
     summarize_task_list_output,
 )
+from voice_history import DEFAULT_HISTORY_PATH, summarize_history
 
 
-DEFAULT_COMMANDS = "help|doctor|scan frame|pair test|git status|list tasks|pin next task|run tests|resume codex|code review|ask codex summarize the repo|repeat|why failed|details|confirm|cancel|exit"
+DEFAULT_COMMANDS = "help|doctor|scan frame|pair test|git status|list tasks|pin next task|run tests|resume codex|code review|ask codex summarize the repo|repeat|history|why failed|details|confirm|cancel|exit"
 DEFAULT_HELP_TEXT = "VOICE CODEX help: doctor, scan, pair test, git status, list tasks, pin next task, run tests, resume codex, code review, ask codex ..., repeat, why failed, details, confirm, cancel, exit"
 EXIT_WORDS = ("exit", "quit", "stop", "结束", "退出", "停止")
 FILLER_PREFIXES = ("please ", "can you ", "could you ", "请", "帮我", "麻烦", "现在", "能不能")
@@ -27,6 +28,7 @@ CONFIRM_WORDS = ("confirm", "yes", "go ahead", "do it", "确认", "执行", "继
 CANCEL_WORDS = ("cancel", "no", "never mind", "stop that", "取消", "不用了", "算了")
 REPEAT_WORDS = ("repeat", "say again", "again", "再说一次", "重复一下", "再来一遍")
 FOLLOW_UP_WORDS = ("why failed", "why did it fail", "details", "explain more", "what happened", "为什么失败", "详细一点", "详细说明", "解释一下")
+HISTORY_WORDS = ("history", "recent commands", "show history", "最近命令", "最近结果", "历史记录")
 DOCTOR_WORDS = ("doctor", "check environment", "环境检查", "检查环境")
 SCAN_WORDS = ("scan frame", "scan device", "扫描眼镜", "扫描设备")
 PAIR_TEST_WORDS = ("pair test", "test connection", "连接测试", "配对测试")
@@ -201,6 +203,8 @@ def parse_intent(text: str, wake_word: Optional[str] = None, shortcuts=None) -> 
         return BridgeIntent("cancel", raw=text)
     if any(word in lowered for word in REPEAT_WORDS):
         return BridgeIntent("repeat", raw=text)
+    if any(word in lowered for word in HISTORY_WORDS):
+        return BridgeIntent("history", raw=text)
     if any(word in lowered for word in FOLLOW_UP_WORDS):
         return BridgeIntent("follow_up", raw=text)
     if any(word in lowered for word in DOCTOR_WORDS):
@@ -482,6 +486,8 @@ async def execute_intent(args, intent: BridgeIntent) -> Tuple[str, bool]:
         return nothing_pending(locale, "confirm"), False
     if intent.action == "cancel":
         return nothing_pending(locale, "cancel"), False
+    if intent.action == "history":
+        return summarize_history(Path(args.history_file).expanduser(), locale=locale), False
 
     if intent.action == "doctor":
         if args.dry_run:
