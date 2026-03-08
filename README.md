@@ -1331,7 +1331,27 @@ python frame_lab.py frame-mic-codex -- --name "Frame EF" --language zh --render-
 - 先确保没有别的 Frame 应用占住设备
 - 重新运行脚本，让它自动执行 break/reset/break
 
-## 23. 推荐下一步
+## 23. Voice Shortcuts：自定义你自己的语音短语
+
+如果你不想记默认命令词，可以自己定义短语：
+
+```bash
+python examples/voice_shortcuts.py add --phrase "检查代码" --action codex_review
+python examples/voice_shortcuts.py add --phrase "继续任务" --action codex_resume
+python examples/voice_shortcuts.py add --phrase "总结仓库" --action codex_exec --payload "summarize this repo"
+python examples/voice_shortcuts.py list
+```
+
+之后 `voice-codex` 和 `frame-mic-codex` 会自动读取这些 shortcuts。
+
+统一入口：
+
+```bash
+python frame_lab.py voice-shortcuts -- add --phrase "检查代码" --action codex_review
+python frame_lab.py voice-shortcuts -- list
+```
+
+## 24. 推荐下一步
 
 你可以继续沿这条路线做三个 MVP：
 
@@ -1339,7 +1359,7 @@ python frame_lab.py frame-mic-codex -- --name "Frame EF" --language zh --render-
 2. `Meeting Translate HUD`：双语会议翻译
 3. `Meeting Speaker HUD`：带说话人标签的会议辅助
 
-## 24. 官方资料
+## 25. 官方资料
 
 - GitHub: <https://github.com/brilliantlabsAR>
 - Frame SDK: <https://docs.brilliant.xyz/frame/frame-sdk/>

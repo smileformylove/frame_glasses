@@ -1,5 +1,6 @@
 import argparse
 import asyncio
+from pathlib import Path
 import time
 
 from frame_utils import FrameUnicodeDisplay, compact_text
@@ -12,6 +13,7 @@ from meeting_hud import (
     parse_audio_device,
 )
 from vision_hud import choose_display
+from voice_shortcuts import DEFAULT_SHORTCUTS_PATH, load_shortcuts
 from voice_codex_core import (
     DEFAULT_COMMANDS,
     canceled_message,
@@ -56,6 +58,7 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument("--demo-commands", default=DEFAULT_COMMANDS, help="Pipe-separated command phrases used in demo mode")
     parser.add_argument("--wake-word", default=None, help="Optional wake word such as codex or 眼镜; if set, only commands prefixed with it are acted on")
     parser.add_argument("--confirm-timeout", type=float, default=12.0, help="Seconds before a pending confirmation expires")
+    parser.add_argument("--shortcuts-file", default=str(DEFAULT_SHORTCUTS_PATH), help="Path to custom voice shortcuts JSON")
     return parser
 
 
@@ -75,7 +78,8 @@ class ResultDisplay:
 
 async def resolve_voice_intent(args, raw_text: str, pending_intent, pending_expires_at: float):
     locale = locale_for_args(args)
-    intent = parse_intent(raw_text, wake_word=args.wake_word)
+    shortcuts = load_shortcuts(Path(args.shortcuts_file).expanduser())
+    intent = parse_intent(raw_text, wake_word=args.wake_word, shortcuts=shortcuts)
     confirmed = False
 
     if pending_intent is not None and time.monotonic() > pending_expires_at:
@@ -85,7 +89,7 @@ async def resolve_voice_intent(args, raw_text: str, pending_intent, pending_expi
         pending_expires_at = 0.0
 
     if pending_intent is not None and intent.action == "ignored":
-        intent = parse_intent(raw_text, wake_word=None)
+        intent = parse_intent(raw_text, wake_word=None, shortcuts=shortcuts)
 
     if pending_intent is not None:
         if intent.action == "confirm":
@@ -114,6 +118,7 @@ async def run_demo(args) -> None:
     display = ResultDisplay(args)
     args.compact_text = lambda text: compact_for_args(args, text)
     commands = [part.strip() for part in args.demo_commands.split("|") if part.strip()]
+    shortcuts = load_shortcuts(Path(args.shortcuts_file).expanduser())
     pending_intent = None
     pending_expires_at = 0.0
     last_message = ""
@@ -126,7 +131,7 @@ async def run_demo(args) -> None:
             )
         except Exception as exc:
             message, should_exit = f"VOICE CODEX error: {exc}", False
-        if parse_intent(command_text, wake_word=args.wake_word).action == "repeat":
+        if parse_intent(command_text, wake_word=args.wake_word, shortcuts=shortcuts).action == "repeat":
             message = last_message or ("VOICE CODEX nothing to repeat." if locale_for_args(args) == "en" else "没有可重复的结果。")
         if not message:
             continue
@@ -174,7 +179,7 @@ async def run_live(args) -> None:
             )
         except Exception as exc:
             message, should_exit = f"VOICE CODEX error: {exc}", False
-        if parse_intent(text, wake_word=args.wake_word).action == "repeat":
+        if parse_intent(text, wake_word=args.wake_word, shortcuts=shortcuts).action == "repeat":
             message = last_message or ("VOICE CODEX nothing to repeat." if locale_for_args(args) == "en" else "没有可重复的结果。")
         if not message:
             continue

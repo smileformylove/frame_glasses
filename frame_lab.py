@@ -27,6 +27,7 @@ COMMANDS = {
     "visual-probe": "examples/frame_visual_probe.py",
     "frame-mic": "examples/frame_mic_test.py",
     "frame-mic-live": "examples/frame_mic_live_hud.py",
+    "voice-shortcuts": "examples/voice_shortcuts.py",
     "frame-audio-probe": "examples/frame_audio_probe.py",
     "frame-audio-calibrate": "examples/frame_audio_calibrate.py",
 }
@@ -54,6 +55,7 @@ DESCRIPTIONS = {
     "visual-probe": "Run a persistent on-device visual probe on Frame",
     "frame-mic": "Record a short WAV clip from the Frame microphone",
     "frame-mic-live": "Stream and transcribe audio from the Frame microphone",
+    "voice-shortcuts": "Manage custom shortcuts for voice Codex bridges",
     "frame-audio-probe": "Record from the Frame microphone and report quality/transcript",
     "frame-audio-calibrate": "Calibrate Frame microphone thresholds for live transcription",
 }

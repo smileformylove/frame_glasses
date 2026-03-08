@@ -164,6 +164,20 @@ def confirmation_prompt(intent: "BridgeIntent", locale: str = 'en') -> str:
     return f'确认执行：{describe_intent(intent)}？请说 confirm 或 cancel。'
 
 
+def normalize_shortcut_key(text: str) -> str:
+    return normalize_command_text(text)
+
+
+def lookup_shortcut(text: str, shortcuts) -> Optional["BridgeIntent"]:
+    if not shortcuts:
+        return None
+    key = normalize_shortcut_key(text)
+    config = shortcuts.get(key)
+    if not config:
+        return None
+    return BridgeIntent(config.get('action', 'unknown'), payload=config.get('payload'), raw=text)
+
+
 class BridgeIntent:
     def __init__(self, action: str, payload: Optional[str] = None, raw: str = ""):
         self.action = action
@@ -171,7 +185,7 @@ class BridgeIntent:
         self.raw = raw
 
 
-def parse_intent(text: str, wake_word: Optional[str] = None) -> BridgeIntent:
+def parse_intent(text: str, wake_word: Optional[str] = None, shortcuts=None) -> BridgeIntent:
     lowered = strip_wake_word(text, wake_word)
     if lowered is None:
         return BridgeIntent("ignored", raw=text)
@@ -179,6 +193,9 @@ def parse_intent(text: str, wake_word: Optional[str] = None) -> BridgeIntent:
         return BridgeIntent("help", raw=text)
     if not lowered:
         return BridgeIntent("unknown", raw=text)
+    shortcut_intent = lookup_shortcut(lowered, shortcuts)
+    if shortcut_intent is not None:
+        return shortcut_intent
     if any(word in lowered for word in EXIT_WORDS):
         return BridgeIntent("exit", raw=text)
     if any(word in lowered for word in HELP_WORDS):
