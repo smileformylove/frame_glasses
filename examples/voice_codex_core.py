@@ -7,6 +7,16 @@ import tempfile
 from pathlib import Path
 from typing import Optional, Tuple
 
+from command_summary import (
+    summarize_codex_output,
+    summarize_doctor_output,
+    summarize_git_status,
+    summarize_pair_test_output,
+    summarize_pytest_output,
+    summarize_scan_output,
+    summarize_task_list_output,
+)
+
 
 DEFAULT_COMMANDS = "help|doctor|scan frame|pair test|git status|list tasks|pin next task|run tests|ask codex summarize the repo|confirm|cancel|exit"
 DEFAULT_HELP_TEXT = "VOICE CODEX help: doctor, scan, pair test, git status, list tasks, pin next task, run tests, ask codex ..., confirm, cancel, exit"
@@ -236,30 +246,30 @@ async def execute_intent(args, intent: BridgeIntent) -> Tuple[str, bool]:
 
     if intent.action == "doctor":
         code, output = await run_subprocess([sys.executable, str(repo / "frame_lab.py"), "doctor"], repo, args.dry_run)
-        return args.compact_text(output or f"doctor exit {code}"), False
+        return args.compact_text(summarize_doctor_output(output or f"doctor exit {code}")), False
     if intent.action == "scan":
         code, output = await run_subprocess([sys.executable, str(repo / "frame_lab.py"), "scan"], repo, args.dry_run)
-        return args.compact_text(output or f"scan exit {code}"), False
+        return args.compact_text(summarize_scan_output(output or f"scan exit {code}")), False
     if intent.action == "pair_test":
         code, output = await run_subprocess([sys.executable, str(repo / "frame_lab.py"), "pair-test", "--", "--text", "Hello from voice bridge"], repo, args.dry_run)
-        return args.compact_text(output or f"pair-test exit {code}"), False
+        return args.compact_text(summarize_pair_test_output(output or f"pair-test exit {code}")), False
     if intent.action == "list_tasks":
         code, output = await run_subprocess([sys.executable, str(repo / "frame_lab.py"), "task-board", "--", "list"], repo, args.dry_run)
-        return args.compact_text(output or f"task list exit {code}"), False
+        return args.compact_text(summarize_task_list_output(output or f"task list exit {code}")), False
     if intent.action == "pin_next_task":
         code, output = await run_subprocess([sys.executable, str(repo / "frame_lab.py"), "task-board", "--", "pin-next"], repo, args.dry_run)
         return args.compact_text(output or f"pin-next exit {code}"), False
     if intent.action == "git_status":
         code, output = await run_shell_text("git status --short --branch", repo, args.dry_run)
-        return args.compact_text(output or f"git status exit {code}"), False
+        return args.compact_text(summarize_git_status(output or f"git status exit {code}")), False
     if intent.action == "run_tests":
         code, output = await run_shell_text(args.test_command, repo, args.dry_run)
         label = "tests passed" if code == 0 else f"tests failed ({code})"
-        detail = args.compact_text(output or label)
+        detail = args.compact_text(summarize_pytest_output(output or label, code))
         return detail, False
     if intent.action == "codex_exec":
         code, output = await run_codex_exec(args, intent.payload or "")
-        label = output or f"codex exit {code}"
+        label = summarize_codex_output(output or f"codex exit {code}")
         return args.compact_text(f"CODEX {label}"), False
 
     return "VOICE CODEX unsupported action.", False
