@@ -18,7 +18,7 @@ from command_summary import (
     summarize_task_list_output,
 )
 from voice_cards import DEFAULT_CARD_STATE_PATH, get_current_card, shift_card
-from voice_history import DEFAULT_HISTORY_PATH, summarize_history
+from voice_history import DEFAULT_HISTORY_PATH, summarize_history, summarize_history_filtered
 from voice_task_state import (
     DEFAULT_TASK_STATE_PATH,
     clear_current_task,
@@ -31,7 +31,7 @@ from voice_task_state import (
 from weather_time import current_time_text, fetch_weather
 
 
-DEFAULT_COMMANDS = "help|time|weather|doctor|scan frame|pair test|git status|list tasks|pin next task|run tests|start task summarize repo|current task|continue task|clear task|recent tasks|previous task|next card|previous card|current card|resume codex|code review|ask codex summarize the repo|repeat|history|why failed|details|confirm|cancel|exit"
+DEFAULT_COMMANDS = "help|time|weather|doctor|scan frame|pair test|git status|list tasks|pin next task|run tests|start task summarize repo|current task|continue task|clear task|recent tasks|previous task|next card|previous card|current card|resume codex|code review|ask codex summarize the repo|repeat|history|history errors|history tasks|history codex|why failed|details|confirm|cancel|exit"
 DEFAULT_HELP_TEXT = "VOICE CODEX help: time, weather, doctor, scan, pair test, git status, list tasks, pin next task, run tests, start task ..., current task, continue task, clear task, recent tasks, previous task, next card, previous card, current card, resume codex, code review, ask codex ..., repeat, why failed, details, confirm, cancel, exit"
 EXIT_WORDS = ("exit", "quit", "stop", "结束", "退出", "停止")
 FILLER_PREFIXES = ("please ", "can you ", "could you ", "请", "帮我", "麻烦", "现在", "能不能")
@@ -43,6 +43,9 @@ CANCEL_WORDS = ("cancel", "no", "never mind", "stop that", "取消", "不用了"
 REPEAT_WORDS = ("repeat", "say again", "again", "再说一次", "重复一下", "再来一遍")
 FOLLOW_UP_WORDS = ("why failed", "why did it fail", "details", "explain more", "what happened", "为什么失败", "详细一点", "详细说明", "解释一下")
 HISTORY_WORDS = ("history", "recent commands", "show history", "最近命令", "最近结果", "历史记录")
+HISTORY_ERRORS_WORDS = ("history errors", "recent errors", "最近错误", "错误记录")
+HISTORY_TASKS_WORDS = ("history tasks", "recent tasks history", "最近任务历史")
+HISTORY_CODEX_WORDS = ("history codex", "recent codex", "最近 codex")
 DOCTOR_WORDS = ("doctor", "check environment", "环境检查", "检查环境")
 SCAN_WORDS = ("scan frame", "scan device", "扫描眼镜", "扫描设备")
 PAIR_TEST_WORDS = ("pair test", "test connection", "连接测试", "配对测试")
@@ -261,6 +264,12 @@ def parse_intent(text: str, wake_word: Optional[str] = None, shortcuts=None) -> 
         return BridgeIntent("repeat", raw=text)
     if any(word in lowered for word in HISTORY_WORDS):
         return BridgeIntent("history", raw=text)
+    if any(word in lowered for word in HISTORY_ERRORS_WORDS):
+        return BridgeIntent("history_errors", raw=text)
+    if any(word in lowered for word in HISTORY_TASKS_WORDS):
+        return BridgeIntent("history_tasks", raw=text)
+    if any(word in lowered for word in HISTORY_CODEX_WORDS):
+        return BridgeIntent("history_codex", raw=text)
     if any(word in lowered for word in FOLLOW_UP_WORDS):
         return BridgeIntent("follow_up", raw=text)
     if any(word in lowered for word in DOCTOR_WORDS):
@@ -666,6 +675,12 @@ async def execute_intent(args, intent: BridgeIntent) -> Tuple[str, bool]:
         return nothing_pending(locale, "cancel"), False
     if intent.action == "history":
         return summarize_history(Path(args.history_file).expanduser(), locale=locale), False
+    if intent.action == "history_errors":
+        return summarize_history_filtered(Path(args.history_file).expanduser(), mode="errors", locale=locale), False
+    if intent.action == "history_tasks":
+        return summarize_history_filtered(Path(args.history_file).expanduser(), mode="tasks", locale=locale), False
+    if intent.action == "history_codex":
+        return summarize_history_filtered(Path(args.history_file).expanduser(), mode="codex", locale=locale), False
 
     if intent.action == "time":
         return args.compact_text(current_time_text(locale=locale, timezone_name=getattr(args, "time_zone", None))), False

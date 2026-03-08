@@ -43,3 +43,35 @@ def summarize_history(path: Path, locale: str = 'en', limit: int = 3) -> str:
             parts.append(f"{action}：{result or heard}")
     separator = ' | ' if locale == 'en' else ' ｜ '
     return separator.join(parts)
+
+
+def filter_entries(entries, mode: str):
+    if mode == 'errors':
+        return [item for item in entries if any(token in str(item.get('result', '')) for token in ('ERROR', 'FAIL', '失败', '错误', 'warning', 'WARN', '警告'))]
+    if mode == 'tasks':
+        return [item for item in entries if str(item.get('action', '')).startswith('task_')]
+    if mode == 'codex':
+        return [item for item in entries if str(item.get('action', '')).startswith('codex_') or 'CODEX' in str(item.get('result', ''))]
+    return entries
+
+
+def summarize_history_filtered(path: Path, mode: str, locale: str = 'en', limit: int = 3) -> str:
+    entries = filter_entries(load_history(path), mode)
+    if not entries:
+        if locale == 'zh':
+            mapping = {'errors': '最近没有错误记录。', 'tasks': '最近没有任务记录。', 'codex': '最近没有 Codex 记录。'}
+            return mapping.get(mode, '还没有历史记录。')
+        mapping = {'errors': 'No recent errors.', 'tasks': 'No recent task history.', 'codex': 'No recent Codex history.'}
+        return mapping.get(mode, 'No history yet.')
+    recent = entries[-limit:]
+    parts = []
+    for item in reversed(recent):
+        action = item.get('action', 'unknown')
+        result = item.get('result', '')
+        heard = item.get('heard', '')
+        if locale == 'en':
+            parts.append(f"{action}: {result or heard}")
+        else:
+            parts.append(f"{action}：{result or heard}")
+    separator = ' | ' if locale == 'en' else ' ｜ '
+    return separator.join(parts)

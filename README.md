@@ -1152,6 +1152,9 @@ python frame_lab.py task-board -- pin-next
 - 说 `ask codex ...` -> 进入确认态，再说 `confirm` 才直接调用本机 `codex exec`
 - 说 `repeat` / `再说一次` -> 重复上一条结果
 - 说 `history` / `最近命令` -> 读取最近几条语音命令结果
+- 说 `最近错误` / `history errors` -> 只看错误结果
+- 说 `最近任务历史` / `history tasks` -> 只看任务相关记录
+- 说 `最近 codex` / `history codex` -> 只看 Codex 相关记录
 - 说 `为什么失败` / `详细一点` -> 基于上一条结果继续追问
 
 ### 19.1 先本地预览
