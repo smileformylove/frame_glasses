@@ -105,6 +105,12 @@ def apply_audio_profile(args) -> None:
     print(f"[{Path(__file__).stem}] loaded profile for {args.name}: min_rms={args.min_rms} trim_leading={args.trim_leading}")
 
 
+
+
+def runtime_settings_summary(args) -> str:
+    adaptive = 'on' if getattr(args, 'adaptive_rms', False) else 'off'
+    return f"min_rms={args.min_rms:.4f} trim={args.trim_leading:.2f} adaptive={adaptive}"
+
 def should_retry_exception(exc: Exception) -> bool:
     return not isinstance(exc, (ModuleNotFoundError, RuntimeError, ValueError))
 
@@ -202,11 +208,13 @@ async def run_live_once(args) -> None:
     unicode_mode = choose_unicode_mode(args, ())
     rms_gate = AdaptiveRmsGate(args.min_rms, alpha=args.adaptive_alpha, multiplier=args.adaptive_multiplier, bias=args.adaptive_bias) if args.adaptive_rms else None
 
+    settings = runtime_settings_summary(args)
+    print(f"[frame-mic] settings={settings}")
     await connect_frame_msg(frame, args.name)
     try:
         queue = await audio.attach(frame)
         await upload_runtime(frame)
-        await send_status_text(frame, f"{args.prefix} frame mic live ready", args, unicode_mode)
+        await send_status_text(frame, f"{args.prefix} frame mic live ready\n{settings}", args, unicode_mode)
 
         while True:
             chunk = await queue.get()
