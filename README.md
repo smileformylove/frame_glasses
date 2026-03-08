@@ -1178,6 +1178,8 @@ python examples/voice_codex_bridge.py --name "Frame EF" --language zh --render-m
 python examples/voice_codex_bridge.py --name "Frame EF" --language zh --render-mode unicode --codex-full-auto --codex-ephemeral
 ```
 
+在 macOS 上，如果你的 `codex` 不在 PATH 里，脚本现在会自动尝试发现 `Codex.app` 里的 CLI 可执行文件。
+
 ### 19.3 统一入口
 
 ```bash

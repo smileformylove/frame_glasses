@@ -3,6 +3,7 @@ import re
 import asyncio
 import subprocess
 import sys
+import shutil
 import tempfile
 from pathlib import Path
 from typing import Optional, Tuple
@@ -434,13 +435,35 @@ async def run_shell_text(command_text: str, cwd: Path, dry_run: bool) -> Tuple[i
 
 
 
+def resolve_codex_bin(args) -> str:
+    candidates = []
+    configured = getattr(args, 'codex_bin', None)
+    if configured:
+        candidates.append(configured)
+    candidates.extend([
+        'codex',
+        '/Applications/Codex.app/Contents/Resources/codex',
+        str(Path.home() / 'Applications/Codex.app/Contents/Resources/codex'),
+    ])
+
+    for candidate in candidates:
+        if not candidate:
+            continue
+        resolved = shutil.which(candidate) if '/' not in candidate else candidate
+        if resolved and Path(resolved).exists():
+            return str(Path(resolved))
+
+    raise RuntimeError('Codex CLI not found. Set --codex-bin explicitly or install Codex.app.')
+
+
 async def run_codex_resume(args) -> Tuple[int, str]:
     repo = Path(args.repo).expanduser().resolve()
     with tempfile.NamedTemporaryFile(prefix="voice_codex_resume_", suffix=".txt", delete=False) as handle:
         output_file = Path(handle.name)
 
+    codex_bin = resolve_codex_bin(args)
     command = [
-        args.codex_bin,
+        codex_bin,
         "exec",
         "resume",
         "--last",
@@ -468,8 +491,9 @@ async def run_codex_review(args) -> Tuple[int, str]:
     with tempfile.NamedTemporaryFile(prefix="voice_codex_review_", suffix=".txt", delete=False) as handle:
         output_file = Path(handle.name)
 
+    codex_bin = resolve_codex_bin(args)
     command = [
-        args.codex_bin,
+        codex_bin,
         "exec",
         "review",
         "--uncommitted",
@@ -499,8 +523,9 @@ async def run_codex_exec(args, prompt: str) -> Tuple[int, str]:
     with tempfile.NamedTemporaryFile(prefix="voice_codex_", suffix=".txt", delete=False) as handle:
         output_file = Path(handle.name)
 
+    codex_bin = resolve_codex_bin(args)
     command = [
-        args.codex_bin,
+        codex_bin,
         "exec",
         "--cd",
         str(repo),

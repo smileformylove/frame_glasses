@@ -26,6 +26,7 @@ from voice_codex_core import (
     parse_intent,
     progress_message,
     requires_confirmation,
+    resolve_codex_bin,
 )
 
 
@@ -108,9 +109,7 @@ def preflight_runtime(args) -> None:
         ) from exc
 
     if not args.dry_run:
-        import shutil
-        if shutil.which(args.codex_bin) is None:
-            raise RuntimeError(f"Codex CLI not found: {args.codex_bin}")
+        args.codex_bin = resolve_codex_bin(args)
 
 
 def apply_audio_profile(args) -> None:

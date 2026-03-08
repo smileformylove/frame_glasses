@@ -28,6 +28,7 @@ from voice_codex_core import (
     parse_intent,
     progress_message,
     requires_confirmation,
+    resolve_codex_bin,
 )
 
 
@@ -85,6 +86,20 @@ def should_persist_result(message: str, should_exit: bool) -> bool:
         "还没有可追问的结果。",
     )
     return not any(message.startswith(prefix) for prefix in blocked_prefixes)
+
+
+
+
+def preflight_runtime(args) -> None:
+    try:
+        import faster_whisper  # noqa: F401
+    except ModuleNotFoundError as exc:
+        raise RuntimeError(
+            "Missing dependency: faster-whisper. Install it with: pip install -r requirements-meeting.txt"
+        ) from exc
+
+    if not args.dry_run:
+        args.codex_bin = resolve_codex_bin(args)
 
 
 class ResultDisplay:
@@ -259,6 +274,7 @@ async def async_main() -> None:
     if args.demo:
         await run_demo(args)
         return
+    preflight_runtime(args)
     await run_live(args)
 
 
