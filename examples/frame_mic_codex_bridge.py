@@ -57,6 +57,25 @@ def build_parser() -> argparse.ArgumentParser:
     return parser
 
 
+
+
+def preflight_runtime(args) -> None:
+    try:
+        import faster_whisper  # noqa: F401
+    except ModuleNotFoundError as exc:
+        raise RuntimeError(
+            "Missing dependency: faster-whisper. Install it with: pip install -r requirements-meeting.txt"
+        ) from exc
+
+    if not args.dry_run:
+        import shutil
+        if shutil.which(args.codex_bin) is None:
+            raise RuntimeError(f"Codex CLI not found: {args.codex_bin}")
+
+
+def should_retry_exception(exc: Exception) -> bool:
+    return not isinstance(exc, (ModuleNotFoundError, RuntimeError, ValueError))
+
 def compact_for_args(args, text: str) -> str:
     from frame_utils import compact_text
     return compact_text(text, args.limit)
@@ -156,13 +175,14 @@ async def async_main() -> None:
     if args.demo:
         await run_demo(args)
         return
+    preflight_runtime(args)
     restart_count = 0
     while True:
         try:
             await run_live_once(args)
             return
         except Exception as exc:
-            if not args.reconnect:
+            if not args.reconnect or not should_retry_exception(exc):
                 raise
             restart_count += 1
             print(f"[frame-mic-codex] reconnect attempt {restart_count}: {exc!r}")

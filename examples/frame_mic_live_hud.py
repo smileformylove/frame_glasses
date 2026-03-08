@@ -54,6 +54,28 @@ def build_parser() -> argparse.ArgumentParser:
     return parser
 
 
+
+
+def preflight_runtime(args) -> None:
+    try:
+        import faster_whisper  # noqa: F401
+    except ModuleNotFoundError as exc:
+        raise RuntimeError(
+            "Missing dependency: faster-whisper. Install it with: pip install -r requirements-meeting.txt"
+        ) from exc
+
+    if args.translate_to and args.translation_provider == "openai":
+        try:
+            import openai  # noqa: F401
+        except ModuleNotFoundError as exc:
+            raise RuntimeError(
+                "Missing dependency: openai. Install it with: pip install -r requirements-translation.txt"
+            ) from exc
+
+
+def should_retry_exception(exc: Exception) -> bool:
+    return not isinstance(exc, (ModuleNotFoundError, RuntimeError, ValueError))
+
 def choose_demo_lines(raw_lines: Optional[str]) -> Sequence[str]:
     if not raw_lines:
         return DEFAULT_DEMO_LINES
@@ -209,13 +231,14 @@ async def async_main() -> None:
     if args.demo:
         await run_demo(args)
         return
+    preflight_runtime(args)
     restart_count = 0
     while True:
         try:
             await run_live_once(args)
             return
         except Exception as exc:
-            if not args.reconnect:
+            if not args.reconnect or not should_retry_exception(exc):
                 raise
             restart_count += 1
             print(f"[frame-mic] reconnect attempt {restart_count}: {exc!r}")
