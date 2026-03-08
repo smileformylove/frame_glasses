@@ -31,6 +31,7 @@ async def record_from_frame(args) -> Path:
 
     app_source = f"""
 local audio = require('audio.min')
+print('frame_mic_started')
 frame.display.text('recording...',1,1)
 frame.display.show()
 audio.start()
