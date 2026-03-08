@@ -306,6 +306,19 @@ def build_parser() -> argparse.ArgumentParser:
     pipe.add_argument("--level", default="info", help="Notification level for each stdin line")
     pipe.add_argument("--source", default="stdin", help="Notification source label")
 
+    watch = subparsers.add_parser("watch", help="Poll a command and notify when its output changes")
+    watch.add_argument("--url", default=f"{DEFAULT_URL}/notify", help="Notification endpoint URL")
+    watch.add_argument("--prefix", default="WATCH", help="Notification prefix")
+    watch.add_argument("--source", default="watch", help="Notification source label")
+    watch.add_argument("--name", default=None, help="Optional label for the watched command")
+    watch.add_argument("--interval", type=float, default=5.0, help="Seconds between polls")
+    watch.add_argument("--max-text", type=int, default=140, help="Maximum notification text length")
+    watch.add_argument("--pin-latest", action="store_true", help="Pin the latest changed output until the next change")
+    watch.add_argument("--clear-pin-on-exit", action="store_true", help="Clear the pinned output when watch exits")
+    watch.add_argument("--iterations", type=int, default=0, help="Stop after N iterations, 0 means run forever")
+    watch.add_argument("--cwd", default=None, help="Optional working directory for the child command")
+    watch.add_argument("watch_command", nargs=argparse.REMAINDER, help="Command to run, place it after --")
+
     return parser
 
 
@@ -323,6 +336,14 @@ def post_json(url: str, payload: dict) -> None:
     except urllib.error.URLError as exc:
         raise SystemExit(f"Failed to contact Agent HUD: {exc}") from exc
     print(body)
+
+
+def pin_url(url: str) -> str:
+    return url[:-7] + "/pin" if url.endswith("/notify") else url.rstrip("/") + "/pin"
+
+
+def clear_url(url: str) -> str:
+    return url[:-7] + "/clear" if url.endswith("/notify") else url.rstrip("/") + "/clear"
 
 
 def send_notification(url: str, text: str, prefix: str, level: str, source: str, sticky: bool = False) -> None:
@@ -370,6 +391,43 @@ def pipe_notifications(url: str, prefix: str, level: str, source: str) -> None:
         send_notification(url, text, prefix, level, source)
 
 
+async def run_watch(args) -> None:
+    command = args.watch_command
+    if command and command[0] == "--":
+        command = command[1:]
+    if not command:
+        raise ValueError("A command is required after --")
+
+    last_summary = None
+    iteration = 0
+    while True:
+        iteration += 1
+        process = await asyncio.create_subprocess_exec(
+            *command,
+            cwd=args.cwd,
+            stdout=asyncio.subprocess.PIPE,
+            stderr=asyncio.subprocess.PIPE,
+        )
+        stdout, stderr = await process.communicate()
+        output = (stdout + stderr).decode(errors="replace").strip()
+        summary = compact_text(" ".join(output.split()) or f"exit {process.returncode} (no output)", args.max_text)
+        if args.name:
+            summary = compact_text(f"{args.name}: {summary}", args.max_text)
+        changed = summary != last_summary
+        if changed:
+            level = "error" if process.returncode != 0 else "info"
+            send_notification(args.url, summary, args.prefix, level, args.source)
+            if args.pin_latest:
+                send_notification(pin_url(args.url), summary, args.prefix, level, args.source, sticky=True)
+            last_summary = summary
+        if args.iterations and iteration >= args.iterations:
+            break
+        await asyncio.sleep(args.interval)
+
+    if args.clear_pin_on_exit:
+        clear_notification(clear_url(args.url))
+
+
 async def async_main() -> None:
     args = build_parser().parse_args()
     if args.command == "send":
@@ -395,6 +453,9 @@ async def async_main() -> None:
         return
     if args.command == "pipe":
         pipe_notifications(args.url, args.prefix, args.level, args.source)
+        return
+    if args.command == "watch":
+        await run_watch(args)
         return
     if args.command == "serve":
         display = NotificationDisplay(

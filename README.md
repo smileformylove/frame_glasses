@@ -823,6 +823,20 @@ pytest -q | python examples/agent_hud.py pipe --prefix TEST
 python your_agent_script.py | python examples/agent_hud.py pipe --prefix AGENT --level info
 ```
 
+### 16.3.1 定时轮询命令
+
+如果你想每隔几秒检查一次命令结果，并且只有在输出变化时才提醒：
+
+```bash
+python examples/agent_hud.py watch --interval 5 -- -- python3 -c "print('build ok')"
+```
+
+把当前输出常驻 pin 到眼镜：
+
+```bash
+python examples/agent_hud.py watch --pin-latest --clear-pin-on-exit --interval 10 --name build -- -- python3 -c "print('build ok')"
+```
+
 ### 16.4 统一入口
 
 ```bash
@@ -831,6 +845,7 @@ python frame_lab.py agent-hud -- send --text "Build succeeded" --level ok
 python frame_lab.py agent-hud -- pin --text "Ship the demo"
 python frame_lab.py agent-hud -- clear
 python frame_lab.py agent-hud -- health
+python frame_lab.py agent-hud -- watch -- -- python3 -c "print('build ok')"
 ```
 
 ### 16.4.1 直接包一层命令
