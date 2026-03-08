@@ -17,10 +17,11 @@ from command_summary import (
     summarize_task_list_output,
 )
 from voice_history import DEFAULT_HISTORY_PATH, summarize_history
+from voice_task_state import DEFAULT_TASK_STATE_PATH, clear_current_task, get_current_task, set_current_task
 
 
-DEFAULT_COMMANDS = "help|doctor|scan frame|pair test|git status|list tasks|pin next task|run tests|resume codex|code review|ask codex summarize the repo|repeat|history|why failed|details|confirm|cancel|exit"
-DEFAULT_HELP_TEXT = "VOICE CODEX help: doctor, scan, pair test, git status, list tasks, pin next task, run tests, resume codex, code review, ask codex ..., repeat, why failed, details, confirm, cancel, exit"
+DEFAULT_COMMANDS = "help|doctor|scan frame|pair test|git status|list tasks|pin next task|run tests|start task summarize repo|current task|continue task|clear task|resume codex|code review|ask codex summarize the repo|repeat|history|why failed|details|confirm|cancel|exit"
+DEFAULT_HELP_TEXT = "VOICE CODEX help: doctor, scan, pair test, git status, list tasks, pin next task, run tests, start task ..., current task, continue task, clear task, resume codex, code review, ask codex ..., repeat, why failed, details, confirm, cancel, exit"
 EXIT_WORDS = ("exit", "quit", "stop", "结束", "退出", "停止")
 FILLER_PREFIXES = ("please ", "can you ", "could you ", "请", "帮我", "麻烦", "现在", "能不能")
 HELP_WORDS = ("help", "what can you do", "commands", "帮助")
@@ -36,6 +37,10 @@ GIT_STATUS_WORDS = ("git status", "status", "git 状态", "代码状态", "仓�
 LIST_TASKS_WORDS = ("list tasks", "show tasks", "任务列表", "列任务", "查看任务", "看看任务")
 PIN_NEXT_TASK_WORDS = ("pin next task", "focus task", "pin task", "置顶任务", "下一任务", "聚焦任务", "置顶下一任务")
 RUN_TESTS_WORDS = ("run tests", "run test", "运行测试", "测试一下", "跑测试", "执行测试", "开始测试", "做测试")
+TASK_START_WORDS = ("start task", "new task", "开始任务", "新任务", "创建任务")
+CURRENT_TASK_WORDS = ("current task", "task status", "当前任务", "现在任务")
+CONTINUE_TASK_WORDS = ("continue task", "继续任务", "继续当前任务")
+CLEAR_TASK_WORDS = ("clear task", "清除任务", "结束任务")
 RESUME_CODEX_WORDS = ("resume codex", "resume last codex", "continue codex", "继续 codex", "继续上次 codex", "继续上次任务")
 CODE_REVIEW_WORDS = ("code review", "review code", "review repo", "代码审查", "代码 review", "审查代码", "检查代码")
 CODEX_PREFIXES = ("ask codex ", "codex ", "让 codex ", "请 codex ", "让 codex 帮我", "请 codex 帮我")
@@ -79,6 +84,10 @@ ACTION_PHRASES = {
     "list_tasks": ("list tasks", "show tasks", "任务列表", "列任务", "查看任务"),
     "pin_next_task": ("pin next task", "focus task", "置顶任务", "下一任务", "聚焦任务"),
     "run_tests": ("run tests", "运行测试", "跑测试", "执行测试"),
+    "task_start": ("start task", "开始任务", "新任务"),
+    "task_status": ("current task", "当前任务"),
+    "task_continue": ("continue task", "继续任务"),
+    "task_clear": ("clear task", "清除任务", "结束任务"),
     "codex_resume": ("resume codex", "continue codex", "继续上次任务", "继续上次 codex"),
     "codex_review": ("code review", "review code", "代码审查", "检查代码"),
     "confirm": ("confirm", "确认", "执行", "继续", "好的"),
@@ -219,6 +228,16 @@ def parse_intent(text: str, wake_word: Optional[str] = None, shortcuts=None) -> 
         return BridgeIntent("list_tasks", raw=text)
     if any(word in lowered for word in RUN_TESTS_WORDS):
         return BridgeIntent("run_tests", raw=text)
+    if any(word in lowered for word in CURRENT_TASK_WORDS):
+        return BridgeIntent("task_status", raw=text)
+    if any(word in lowered for word in CONTINUE_TASK_WORDS):
+        return BridgeIntent("task_continue", raw=text)
+    if any(word in lowered for word in CLEAR_TASK_WORDS):
+        return BridgeIntent("task_clear", raw=text)
+    for prefix in TASK_START_WORDS:
+        if lowered.startswith(prefix):
+            payload = lowered[len(prefix):].strip()
+            return BridgeIntent("task_start", payload=payload, raw=text)
     if any(word in lowered for word in RESUME_CODEX_WORDS):
         return BridgeIntent("codex_resume", raw=text)
     if any(word in lowered for word in CODE_REVIEW_WORDS):
@@ -273,6 +292,15 @@ def describe_intent(intent: BridgeIntent, locale: str = 'en') -> str:
             return "读取任务列表"
         if intent.action == "pin_next_task":
             return "置顶下一任务"
+        if intent.action == "task_start":
+            payload = (intent.payload or "").strip()
+            return f"开始任务：{payload}" if payload else "开始任务"
+        if intent.action == "task_status":
+            return "查看当前任务"
+        if intent.action == "task_continue":
+            return "继续当前任务"
+        if intent.action == "task_clear":
+            return "清除当前任务"
         return intent.action.replace("_", " ")
 
     if intent.action == "run_tests":
@@ -296,6 +324,23 @@ def describe_intent(intent: BridgeIntent, locale: str = 'en') -> str:
         return "list tasks"
     if intent.action == "pin_next_task":
         return "pin next task"
+    if intent.action == "task_start":
+        payload = (intent.payload or "").strip()
+        return f"start task: {payload}" if payload else "start task"
+    if intent.action == "task_status":
+        return "show current task"
+    if intent.action == "task_continue":
+        return "continue current task"
+    if intent.action == "task_clear":
+        return "clear current task"
+    if intent.action == "task_start":
+        return "start task"
+    if intent.action == "task_status":
+        return "current task"
+    if intent.action == "task_continue":
+        return "continue task"
+    if intent.action == "task_clear":
+        return "clear task"
     return intent.action.replace("_", " ")
 
 
@@ -348,6 +393,15 @@ def dry_run_message(intent: BridgeIntent, args, locale: str) -> str:
         return 'Would check git status' if locale == 'en' else '将查看 git 状态'
     if intent.action == 'run_tests':
         return f"Would run tests: {args.test_command}" if locale == 'en' else f"将运行测试：{args.test_command}"
+    if intent.action == 'task_start':
+        payload = (intent.payload or '').strip()
+        return f"Would start task: {payload}" if locale == 'en' else f"将开始任务：{payload}"
+    if intent.action == 'task_status':
+        return 'Would show current task' if locale == 'en' else '将查看当前任务'
+    if intent.action == 'task_continue':
+        return 'Would continue current task' if locale == 'en' else '将继续当前任务'
+    if intent.action == 'task_clear':
+        return 'Would clear current task' if locale == 'en' else '将清除当前任务'
     if intent.action == 'codex_resume':
         return 'Would resume the last Codex task' if locale == 'en' else '将继续最近一次 Codex 会话'
     if intent.action == 'codex_review':
@@ -526,6 +580,35 @@ async def execute_intent(args, intent: BridgeIntent) -> Tuple[str, bool]:
         label = "tests passed" if code == 0 else f"tests failed ({code})"
         detail = args.compact_text(summarize_pytest_output(output or label, code, locale=locale))
         return detail, False
+    if intent.action == "task_start":
+        task_payload = (intent.payload or "").strip()
+        if not task_payload:
+            return ("Task description missing." if locale == "en" else "缺少任务描述。"), False
+        set_current_task(Path(args.task_state_file).expanduser(), task_payload, task_payload)
+        if args.dry_run:
+            return dry_run_message(intent, args, locale), False
+        code, output = await run_codex_exec(args, task_payload)
+        label = summarize_codex_output(output or f"codex exit {code}", locale=locale)
+        return args.compact_text(f"CODEX {label}"), False
+    if intent.action == "task_status":
+        task = get_current_task(Path(args.task_state_file).expanduser())
+        if not task:
+            return ("No current task." if locale == "en" else "当前没有任务。"), False
+        title = task.get("title", "")
+        return (f"Current task: {title}" if locale == "en" else f"当前任务：{title}"), False
+    if intent.action == "task_continue":
+        task = get_current_task(Path(args.task_state_file).expanduser())
+        if not task:
+            return ("No current task to continue." if locale == "en" else "当前没有可继续的任务。"), False
+        payload = task.get("payload") or task.get("title", "")
+        if args.dry_run:
+            return dry_run_message(intent, args, locale), False
+        code, output = await run_codex_resume(args)
+        label = summarize_codex_output(output or f"codex resume exit {code}", locale=locale)
+        return args.compact_text(f"CODEX {label}"), False
+    if intent.action == "task_clear":
+        clear_current_task(Path(args.task_state_file).expanduser())
+        return ("Current task cleared." if locale == "en" else "当前任务已清除。"), False
     if intent.action == "codex_resume":
         if args.dry_run:
             return dry_run_message(intent, args, locale), False

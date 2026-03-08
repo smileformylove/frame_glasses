@@ -1355,7 +1355,24 @@ python frame_lab.py voice-shortcuts -- add --phrase "检查代码" --action code
 python frame_lab.py voice-shortcuts -- list
 ```
 
-## 24. 推荐下一步
+## 24. Task Thread Mode：开始任务、查看当前任务、继续任务
+
+除了零散命令，你现在还可以建立一个当前任务线程：
+
+- `start task ...` / `开始任务 ...`
+- `current task` / `当前任务`
+- `continue task` / `继续任务`
+- `clear task` / `清除任务`
+
+例如：
+
+```bash
+python examples/voice_codex_bridge.py --demo --dry-run --language zh --demo-commands "开始任务 修复 Frame BLE 断连|当前任务|继续任务|清除任务|exit"
+```
+
+这份当前任务会持久化到 `profiles/voice_task_state.json`。
+
+## 25. 推荐下一步
 
 你可以继续沿这条路线做三个 MVP：
 
@@ -1363,7 +1380,7 @@ python frame_lab.py voice-shortcuts -- list
 2. `Meeting Translate HUD`：双语会议翻译
 3. `Meeting Speaker HUD`：带说话人标签的会议辅助
 
-## 25. 官方资料
+## 26. 官方资料
 
 - GitHub: <https://github.com/brilliantlabsAR>
 - Frame SDK: <https://docs.brilliant.xyz/frame/frame-sdk/>

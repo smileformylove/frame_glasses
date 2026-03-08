@@ -12,6 +12,7 @@ from frame_mic_live_hud import append_log, choose_demo_lines, send_status_text, 
 from meeting_hud import FasterWhisperTranscriber
 from vision_hud import connect_frame_msg
 from voice_context import DEFAULT_CONTEXT_PATH, load_last_message, save_last_message
+from voice_task_state import DEFAULT_TASK_STATE_PATH
 from voice_history import DEFAULT_HISTORY_PATH, append_history
 from voice_shortcuts import DEFAULT_SHORTCUTS_PATH, load_shortcuts
 from voice_codex_core import (
@@ -77,6 +78,7 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument("--shortcuts-file", default=str(DEFAULT_SHORTCUTS_PATH), help="Path to custom voice shortcuts JSON")
     parser.add_argument("--context-file", default=str(DEFAULT_CONTEXT_PATH), help="Path to persisted voice result context JSON")
     parser.add_argument("--history-file", default=str(DEFAULT_HISTORY_PATH), help="Path to persisted voice history JSON")
+    parser.add_argument("--task-state-file", default=str(DEFAULT_TASK_STATE_PATH), help="Path to persisted current-task state JSON")
     return parser
 
 
