@@ -1141,6 +1141,8 @@ python frame_lab.py task-board -- pin-next
 - 说 `git status` -> 看仓库状态
 - 说 `list tasks` / `pin next task` -> 操作任务板
 - 说 `run tests` -> 进入确认态，再说 `confirm` 才执行
+- 说 `resume codex` / `继续上次任务` -> 进入确认态，再继续上次 Codex 会话
+- 说 `code review` / `代码审查` -> 进入确认态，再执行当前仓库 review
 - 说 `ask codex ...` -> 进入确认态，再说 `confirm` 才直接调用本机 `codex exec`
 
 ### 19.1 先本地预览

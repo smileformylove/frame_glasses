@@ -18,12 +18,12 @@ from command_summary import (
 )
 
 
-DEFAULT_COMMANDS = "help|doctor|scan frame|pair test|git status|list tasks|pin next task|run tests|ask codex summarize the repo|confirm|cancel|exit"
-DEFAULT_HELP_TEXT = "VOICE CODEX help: doctor, scan, pair test, git status, list tasks, pin next task, run tests, ask codex ..., confirm, cancel, exit"
+DEFAULT_COMMANDS = "help|doctor|scan frame|pair test|git status|list tasks|pin next task|run tests|resume codex|code review|ask codex summarize the repo|confirm|cancel|exit"
+DEFAULT_HELP_TEXT = "VOICE CODEX help: doctor, scan, pair test, git status, list tasks, pin next task, run tests, resume codex, code review, ask codex ..., confirm, cancel, exit"
 EXIT_WORDS = ("exit", "quit", "stop", "结束", "退出", "停止")
 FILLER_PREFIXES = ("please ", "can you ", "could you ", "请", "帮我", "麻烦", "现在", "能不能")
 HELP_WORDS = ("help", "what can you do", "commands", "帮助")
-CONFIRM_WORDS = ("confirm", "yes", "go ahead", "do it", "确认", "执行", "继续", "好的")
+CONFIRM_WORDS = ("confirm", "yes", "go ahead", "do it", "确认", "执行", "继续执行", "好的")
 CANCEL_WORDS = ("cancel", "no", "never mind", "stop that", "取消", "不用了", "算了")
 DOCTOR_WORDS = ("doctor", "check environment", "环境检查", "检查环境")
 SCAN_WORDS = ("scan frame", "scan device", "扫描眼镜", "扫描设备")
@@ -32,6 +32,8 @@ GIT_STATUS_WORDS = ("git status", "status", "git 状态", "代码状态", "仓�
 LIST_TASKS_WORDS = ("list tasks", "show tasks", "任务列表", "列任务", "查看任务", "看看任务")
 PIN_NEXT_TASK_WORDS = ("pin next task", "focus task", "pin task", "置顶任务", "下一任务", "聚焦任务", "置顶下一任务")
 RUN_TESTS_WORDS = ("run tests", "run test", "运行测试", "测试一下", "跑测试", "执行测试", "开始测试", "做测试")
+RESUME_CODEX_WORDS = ("resume codex", "resume last codex", "continue codex", "继续 codex", "继续上次 codex", "继续上次任务")
+CODE_REVIEW_WORDS = ("code review", "review code", "review repo", "代码审查", "代码 review", "审查代码", "检查代码")
 CODEX_PREFIXES = ("ask codex ", "codex ", "让 codex ", "请 codex ", "让 codex 帮我", "请 codex 帮我")
 
 
@@ -73,6 +75,8 @@ ACTION_PHRASES = {
     "list_tasks": ("list tasks", "show tasks", "任务列表", "列任务", "查看任务"),
     "pin_next_task": ("pin next task", "focus task", "置顶任务", "下一任务", "聚焦任务"),
     "run_tests": ("run tests", "运行测试", "跑测试", "执行测试"),
+    "codex_resume": ("resume codex", "continue codex", "继续上次任务", "继续上次 codex"),
+    "codex_review": ("code review", "review code", "代码审查", "检查代码"),
     "confirm": ("confirm", "确认", "执行", "继续", "好的"),
     "cancel": ("cancel", "取消", "不用了", "算了"),
     "exit": ("exit", "quit", "结束", "退出", "停止"),
@@ -194,6 +198,10 @@ def parse_intent(text: str, wake_word: Optional[str] = None) -> BridgeIntent:
         return BridgeIntent("list_tasks", raw=text)
     if any(word in lowered for word in RUN_TESTS_WORDS):
         return BridgeIntent("run_tests", raw=text)
+    if any(word in lowered for word in RESUME_CODEX_WORDS):
+        return BridgeIntent("codex_resume", raw=text)
+    if any(word in lowered for word in CODE_REVIEW_WORDS):
+        return BridgeIntent("codex_review", raw=text)
     if any(word in lowered for word in GIT_STATUS_WORDS):
         return BridgeIntent("git_status", raw=text)
     if "codex" in lowered and not any(lowered.startswith(prefix) for prefix in CODEX_PREFIXES):
@@ -218,7 +226,7 @@ def parse_intent(text: str, wake_word: Optional[str] = None) -> BridgeIntent:
 
 
 def requires_confirmation(intent: BridgeIntent) -> bool:
-    return intent.action in ("run_tests", "codex_exec")
+    return intent.action in ("run_tests", "codex_exec", "codex_resume", "codex_review")
 
 
 def describe_intent(intent: BridgeIntent) -> str:
@@ -227,6 +235,10 @@ def describe_intent(intent: BridgeIntent) -> str:
     if intent.action == "codex_exec":
         payload = (intent.payload or "").strip()
         return f"ask Codex to {payload}" if payload else "ask Codex"
+    if intent.action == "codex_resume":
+        return "resume the last Codex task"
+    if intent.action == "codex_review":
+        return "run a code review"
     if intent.action == "pair_test":
         return "run pair test"
     if intent.action == "doctor":
@@ -261,6 +273,65 @@ async def run_shell_text(command_text: str, cwd: Path, dry_run: bool) -> Tuple[i
     command = ["/bin/zsh", "-lc", command_text]
     return await run_subprocess(command, cwd, dry_run)
 
+
+
+
+async def run_codex_resume(args) -> Tuple[int, str]:
+    repo = Path(args.repo).expanduser().resolve()
+    with tempfile.NamedTemporaryFile(prefix="voice_codex_resume_", suffix=".txt", delete=False) as handle:
+        output_file = Path(handle.name)
+
+    command = [
+        args.codex_bin,
+        "exec",
+        "resume",
+        "--last",
+        "--cd",
+        str(repo),
+        "--output-last-message",
+        str(output_file),
+    ]
+    if getattr(args, "codex_full_auto", False):
+        command.insert(2, "--full-auto")
+    if getattr(args, "codex_ephemeral", False):
+        command.insert(2, "--ephemeral")
+
+    code, output = await run_subprocess(command, repo, args.dry_run)
+    if args.dry_run:
+        return code, output
+
+    final_text = output_file.read_text(encoding="utf-8", errors="replace").strip() if output_file.exists() else ""
+    output_file.unlink(missing_ok=True)
+    return code, final_text or output or "Codex resume returned no message"
+
+
+async def run_codex_review(args) -> Tuple[int, str]:
+    repo = Path(args.repo).expanduser().resolve()
+    with tempfile.NamedTemporaryFile(prefix="voice_codex_review_", suffix=".txt", delete=False) as handle:
+        output_file = Path(handle.name)
+
+    command = [
+        args.codex_bin,
+        "exec",
+        "review",
+        "--uncommitted",
+        "--cd",
+        str(repo),
+        "--output-last-message",
+        str(output_file),
+    ]
+    if getattr(args, "codex_full_auto", False):
+        command.insert(2, "--full-auto")
+    if getattr(args, "codex_ephemeral", False):
+        command.insert(2, "--ephemeral")
+
+    code, output = await run_subprocess(command, repo, args.dry_run)
+    if args.dry_run:
+        return code, output
+
+    final_text = output_file.read_text(encoding="utf-8", errors="replace").strip() if output_file.exists() else ""
+    output_file.unlink(missing_ok=True)
+    return code, final_text or output or "Codex review returned no message"
 
 async def run_codex_exec(args, prompt: str) -> Tuple[int, str]:
     if not prompt:
@@ -335,6 +406,14 @@ async def execute_intent(args, intent: BridgeIntent) -> Tuple[str, bool]:
         label = "tests passed" if code == 0 else f"tests failed ({code})"
         detail = args.compact_text(summarize_pytest_output(output or label, code, locale=locale))
         return detail, False
+    if intent.action == "codex_resume":
+        code, output = await run_codex_resume(args)
+        label = summarize_codex_output(output or f"codex resume exit {code}", locale=locale)
+        return args.compact_text(f"CODEX {label}"), False
+    if intent.action == "codex_review":
+        code, output = await run_codex_review(args)
+        label = summarize_codex_output(output or f"codex review exit {code}", locale=locale)
+        return args.compact_text(f"CODEX {label}"), False
     if intent.action == "codex_exec":
         code, output = await run_codex_exec(args, intent.payload or "")
         label = summarize_codex_output(output or f"codex exit {code}", locale=locale)
